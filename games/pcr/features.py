@@ -1,0 +1,13 @@
+"""公主连结 模板特征名（540x960 / 雷电 4 参考分辨率）。"""
+
+PCR_HOME = "pcr_home"
+PCR_CLOSE_POPUP = "pcr_close_popup"
+PCR_GIFT_BOX = "pcr_gift_box"
+PCR_QUEST_CLAIM = "pcr_quest_claim"
+PCR_ADVENTURE_ENTRY = "pcr_adventure_entry"
+PCR_SWEEP_BUTTON = "pcr_sweep_button"
+PCR_DUNGEON_ENTRY = "pcr_dungeon_entry"
+PCR_SUPPORT_BORROW = "pcr_support_borrow"
+PCR_GUILD_ENTRY = "pcr_guild_entry"
+PCR_GUILD_DONATE = "pcr_guild_donate"
+PCR_OK_BUTTON = "pcr_ok_button"
