@@ -16,7 +16,7 @@
 ### macOS（逻辑开发）
 
 ```bash
-git clone <your-repo> daily-clear-hub
+git clone https://github.com/electrovalentbond/daily-clear-hub.git
 cd daily-clear-hub
 python3 -m venv .venv && source .venv/bin/activate
 pip install pyyaml
