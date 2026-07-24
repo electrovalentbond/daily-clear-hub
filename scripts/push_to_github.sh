@@ -27,5 +27,5 @@ else
   git remote add origin "https://github.com/${REPO}.git"
 fi
 
-git push -u origin main
+git -c http.postBuffer=524288000 push -u origin main
 echo "完成: https://github.com/${REPO}"
