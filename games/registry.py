@@ -4,8 +4,12 @@ from dataclasses import dataclass
 from typing import Callable, Protocol
 
 from games.adapters import MockFlowContext
+from games.bhxy2.flow import BHXY2_DAILY_FLOW
+from games.genshin.flow import GENSHIN_DAILY_FLOW
 from games.honkai3.flow import HONKAI3_DAILY_FLOW
 from games.pcr.flow import PCR_DAILY_FLOW
+from games.starrail.flow import STARRAIL_DAILY_FLOW
+from games.zzz.flow import ZZZ_DAILY_FLOW
 
 
 @dataclass(frozen=True)
@@ -45,38 +49,44 @@ def _run_flow_mock(flow, game_id: str) -> Callable[[GameRunContext], None]:
     return _runner
 
 
-def _honkai3_daily(context: GameRunContext) -> None:
-    _run_flow_mock(HONKAI3_DAILY_FLOW, "honkai3")(context)
+def _windows_or_mock(task_name: str, flow, game_id: str) -> Callable[[GameRunContext], None]:
+    def _runner(context: GameRunContext) -> None:
+        try:
+            from ok import run_task
+            from src.config import config
 
+            run_task(config, task_name=task_name)
+        except ImportError:
+            _run_flow_mock(flow, game_id)(context)
 
-def _pcr_daily(context: GameRunContext) -> None:
-    _run_flow_mock(PCR_DAILY_FLOW, "pcr")(context)
-
-
-def _honkai3_daily_windows(context: GameRunContext) -> None:
-    """Windows 上通过 ok-script 执行完整 Task（含截图识别）。"""
-    try:
-        from ok import run_task
-        from src.config import config
-
-        run_task(config, task_name="Honkai3DailyTask")
-    except ImportError:
-        _honkai3_daily(context)
-
-
-def _pcr_daily_windows(context: GameRunContext) -> None:
-    try:
-        from ok import run_task
-        from src.config import config
-
-        run_task(config, task_name="PcrDailyTask")
-    except ImportError:
-        _pcr_daily(context)
+    return _runner
 
 
 RUNNERS: dict[tuple[str, str], StepRunner] = {
-    ("honkai3", "daily"): CallableStepRunner("honkai3/daily", _honkai3_daily_windows),
-    ("pcr", "daily"): CallableStepRunner("pcr/daily", _pcr_daily_windows),
+    ("honkai3", "daily"): CallableStepRunner(
+        "honkai3/daily",
+        _windows_or_mock("Honkai3DailyTask", HONKAI3_DAILY_FLOW, "honkai3"),
+    ),
+    ("starrail", "daily"): CallableStepRunner(
+        "starrail/daily",
+        _windows_or_mock("StarRailDailyTask", STARRAIL_DAILY_FLOW, "starrail"),
+    ),
+    ("zzz", "daily"): CallableStepRunner(
+        "zzz/daily",
+        _windows_or_mock("ZzzDailyTask", ZZZ_DAILY_FLOW, "zzz"),
+    ),
+    ("genshin", "daily"): CallableStepRunner(
+        "genshin/daily",
+        _windows_or_mock("GenshinDailyTask", GENSHIN_DAILY_FLOW, "genshin"),
+    ),
+    ("pcr", "daily"): CallableStepRunner(
+        "pcr/daily",
+        _windows_or_mock("PcrDailyTask", PCR_DAILY_FLOW, "pcr"),
+    ),
+    ("bhxy2", "daily"): CallableStepRunner(
+        "bhxy2/daily",
+        _windows_or_mock("Bhxy2DailyTask", BHXY2_DAILY_FLOW, "bhxy2"),
+    ),
 }
 
 

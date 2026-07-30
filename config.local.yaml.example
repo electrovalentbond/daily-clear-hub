@@ -2,8 +2,8 @@
 windows:
   honkai3_exe: "D:/Games/bh3/launcher.exe"
   starrail_exe: "D:/Games/Star Rail/Game/StarRail.exe"
-  zzz_exe: ""
-  genshin_exe: ""
+  zzz_exe: "D:/Games/ZenlessZoneZero Game/ZenlessZoneZero.exe"
+  genshin_exe: "D:/Games/Genshin Impact/Genshin Impact Game/YuanShen.exe"
 
 emulator:
   ldplayer_root: "C:/leidian/LDPlayer9"

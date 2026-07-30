@@ -113,10 +113,12 @@ config = {
     'onetime_tasks': [
         ["src.tasks.DailyClearTask", "DailyClearTask"],
         ["games.honkai3.tasks.daily", "Honkai3DailyTask"],
+        ["games.starrail.tasks.daily", "StarRailDailyTask"],
+        ["games.zzz.tasks.daily", "ZzzDailyTask"],
+        ["games.genshin.tasks.daily", "GenshinDailyTask"],
         ["games.pcr.tasks.daily", "PcrDailyTask"],
+        ["games.bhxy2.tasks.daily", "Bhxy2DailyTask"],
         ["src.tasks.MyOneTimeTask", "MyOneTimeTask"],
-        ["ok", "DiagnosisTask"],
-    ],
         ["ok", "DiagnosisTask"],
     ],
 }

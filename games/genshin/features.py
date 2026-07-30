@@ -1,0 +1,13 @@
+"""原神 模板特征名。"""
+
+GI_LOBBY = "gi_lobby"
+GI_CLOSE_POPUP = "gi_close_popup"
+GI_QUEST_BOOK = "gi_quest_book"
+GI_COMMISSION_CLAIM = "gi_commission_claim"
+GI_DOMAIN_ENTRY = "gi_domain_entry"
+GI_RESIN_SWEEP = "gi_resin_sweep"
+GI_EXPEDITION_ENTRY = "gi_expedition_entry"
+GI_EXPEDITION_CLAIM = "gi_expedition_claim"
+GI_TEAPOT_ENTRY = "gi_teapot_entry"
+GI_TEAPOT_CLAIM = "gi_teapot_claim"
+GI_OK = "gi_ok_button"

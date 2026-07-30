@@ -1,0 +1,13 @@
+"""绝区零 模板特征名。"""
+
+ZZZ_LOBBY = "zzz_lobby"
+ZZZ_CLOSE_POPUP = "zzz_close_popup"
+ZZZ_BUSINESS_ENTRY = "zzz_business_entry"
+ZZZ_SCRATCH_CARD = "zzz_scratch_card"
+ZZZ_BATTERY_ENTRY = "zzz_battery_entry"
+ZZZ_SWEEP_BUTTON = "zzz_sweep_button"
+ZZZ_MISSIONS_ENTRY = "zzz_missions_entry"
+ZZZ_DAILY_CLAIM = "zzz_daily_claim"
+ZZZ_MAIL_ENTRY = "zzz_mail_entry"
+ZZZ_MAIL_CLAIM = "zzz_mail_claim"
+ZZZ_OK = "zzz_ok_button"

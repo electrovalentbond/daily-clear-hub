@@ -1,6 +1,10 @@
 schedule_order:
   - honkai3
+  - starrail
+  - zzz
+  - genshin
   - pcr
+  - bhxy2
 
 scheduler:
   task_timeout_sec: 1800
@@ -13,7 +17,21 @@ games:
     platform: windows
     tasks:
       - daily
-    # 步骤开关在 ok-script GUI 的「崩坏3 日常」任务内配置
+  starrail:
+    enabled: true
+    platform: windows
+    tasks:
+      - daily
+  zzz:
+    enabled: true
+    platform: windows
+    tasks:
+      - daily
+  genshin:
+    enabled: true
+    platform: windows
+    tasks:
+      - daily
   pcr:
     enabled: true
     platform: adb
@@ -22,21 +40,11 @@ games:
     resolution: "540,960,240"
     tasks:
       - daily
-    # 步骤开关在 ok-script GUI 的「公主连结 日常」任务内配置
-  starrail:
-    enabled: false
-    platform: windows
-    tasks: []
-  zzz:
-    enabled: false
-    platform: windows
-    tasks: []
-  genshin:
-    enabled: false
-    platform: windows
-    tasks: []
   bhxy2:
-    enabled: false
+    enabled: true
     platform: adb
     emulator_index: 0
-    tasks: []
+    # 包名需在 Windows 上用 adb shell pm list packages 确认后填写
+    package: ""
+    tasks:
+      - daily
