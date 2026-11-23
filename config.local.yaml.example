@@ -1,4 +1,6 @@
-# 复制为 config.local.yaml，并按 docs/windows.md 配置上游工具。
+# plan/check/run --automas 可直接使用 AUTO-MAS 托管和自动发现的 B 服 ADB 设备。
+# 下方示例用于需要手动指定托管或独立工具路径的场合。
+# 手动使用时复制为 config.local.yaml，并按 docs/windows.md 配置上游工具。
 # 先运行 check GAME 和 run GAME 检查单款游戏，再用 enabled: true 加入队列。
 # 相对路径以仓库根目录为基准。要使用内置模板，可将对应游戏的 backend 改为 native，
 # 并移除该游戏特有的上游字段。

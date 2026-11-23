@@ -1,24 +1,28 @@
 # Daily Clear Hub
 
-在 Windows 上按一份配置运行七款游戏的日常。上游后端使用各项目自带的素材。崩坏 3、终末地、原神和绝区零通过 AUTO-MAS 运行。公主连结国服 B 服使用 pcr-script，星铁使用三月七小助手，崩坏学园 2 使用 HKA。Hub 等待各游戏的运行报告，再继续队列。
+在 Windows 上从一个队列运行七款游戏的日常。六款游戏可以在 AUTO-MAS 中集中设置，Hub 自动读取托管。公主连结国服 B 服由同一个命令识别并使用 pcr-script。上游后端使用自带的识别素材。
 
-- [Windows 安装与运行手册](docs/windows.md)
+- [Windows 一次安装与运行手册](docs/windows.md)
 - [七款游戏的实现评估与源码依据](docs/implementation-review.md)
 - [内置流程的模板采集说明](assets/README.md)
 
-## 入口
+## 首次准备和运行
 
-在仓库根目录按 Windows 手册创建 `.venv`，复制 `config.local.yaml.example` 为 `config.local.yaml` 并设置运行目标。
+在 Windows 上按手册准备 Git 和 Python 3.12。在仓库根目录运行：
 
 ```powershell
-& .\.venv\Scripts\python.exe .\main.py plan
-& .\.venv\Scripts\python.exe .\main.py check
-& .\.venv\Scripts\python.exe .\main.py run
+& .\scripts\setup-windows.ps1 -Games honkai3,starrail,zzz,genshin,pcr,bhxy2,endfield
 ```
 
-`plan` 列出全部游戏和步骤。 `check` 检查配置和素材，`run` 按 `schedule_order` 运行已启用的游戏。可在命令后传入一个或多个游戏 ID 单独联调，例如 `run endfield`。`gui endfield --debug` 打开单游戏的 ok-script 截图诊断工具。
+打开 AUTO-MAS，配置要运行的托管。公主连结使用已登录的 B 服 ADB 设备。首次检查可以在命令末尾指定游戏 ID。
 
-仓库默认关闭所有游戏。配置示例选择免标注的上游后端，按手册安装与配置后逐款检查，再将通过的游戏加入队列。也可选择 `backend: native`，使用 [ok-script](https://github.com/ok-oldking/ok-script) 和本机 COCO 截图模板处理免费领奖。
+```powershell
+& .\.venv\Scripts\python.exe .\main.py plan --automas
+& .\.venv\Scripts\python.exe .\main.py check --automas
+& .\.venv\Scripts\python.exe .\main.py run --automas
+```
+
+已有的手动 YAML 可以继续使用 `run`。使用 [ok-script](https://github.com/ok-oldking/ok-script) 和本机 COCO 模板时，选择 `backend: native`，用 `gui endfield --debug` 打开单游戏诊断。
 
 ## 开发验证
 

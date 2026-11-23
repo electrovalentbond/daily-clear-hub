@@ -4,7 +4,7 @@
 
 ## 原神 · BetterGI
 
-安装 BetterGI 0.67.0。已有此版本可跳过下载，直接使用原安装目录。[BetterGI 0.67.0 发布页](https://github.com/babalae/better-genshin-impact/releases/tag/0.67.0)
+批量安装脚本会准备 BetterGI 0.67.0 安装器。已有安装器或已安装该版本时，直接使用对应文件或原目录。也可按以下命令单独下载。[BetterGI 0.67.0 发布页](https://github.com/babalae/better-genshin-impact/releases/tag/0.67.0)
 
 ```powershell
 $BetterGiSetup = Join-Path $env:TEMP 'BetterGI.Install.0.67.0.exe'
@@ -24,7 +24,7 @@ BetterGI 有些领奖步骤会报告流程结束但无法确认到账。AUTO-MAS
 
 ## 绝区零 · 一条龙
 
-用 v2.6.1 的 `WithRuntime-Full.zip`，其中包含集成启动器、运行依赖和模型。已有安装可直接复用含 `OneDragon-RuntimeLauncher.exe` 的目录。[一条龙 v2.6.1 发布页](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/releases/tag/v2.6.1)
+批量脚本会解压 v2.6.1 的完整包，其中包含集成启动器、运行依赖和模型。已有含 `OneDragon-RuntimeLauncher.exe` 的目录可以复用，也可按以下命令单独安装。[一条龙 v2.6.1 发布页](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/releases/tag/v2.6.1)
 
 ```powershell
 $ZzzInstall = 'C:\Tools\ZZZ-OD'
@@ -51,29 +51,14 @@ Start-Process -FilePath $ZzzLauncher.FullName -WorkingDirectory $ZzzLauncher.Dir
 
 AUTO-MAS 会结合本轮的一条龙日志与任务记录判断结果。启动后直接退出会显示失败；当天任务均已完成时，需要一条龙确认整轮正常结束才会报告完成。[绝区零终态判定](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/ZzzOd/AutoProxy.py#L1169-L1247)
 
-## 加入 Hub 队列
+## 从 Hub 运行
 
-按[查询托管与账号 ID](maa-upstream.md#3-查询托管与账号-id)取得对应的托管 UUID。下方 UUID 是示例，合并进 `config.local.yaml` 前用你的值替换。一个托管有多个账号时，可用 `user_id` 指定一个 AUTO-MAS 账号 UUID。先只启用已完成配置的游戏。
-
-```yaml
-games:
-  genshin:
-    enabled: true
-    backend: automas
-    script_id: '11111111-1111-4111-8111-111111111111'
-    timeout_sec: 1800
-  zzz:
-    enabled: true
-    backend: automas
-    script_id: '22222222-2222-4222-8222-222222222222'
-    timeout_sec: 1800
-```
-
-在 Hub 仓库根目录运行。只配置了其中一款时，只传其游戏 ID。
+在 Hub 仓库根目录检查两个已保存的专项。只配置一款时，在命令末尾传该游戏的 ID。
 
 ```powershell
-& .\.venv\Scripts\python.exe .\main.py check genshin zzz
-& .\.venv\Scripts\python.exe .\main.py run genshin zzz
+& .\.venv\Scripts\python.exe .\main.py plan --automas genshin zzz
+& .\.venv\Scripts\python.exe .\main.py check --automas genshin zzz
+& .\.venv\Scripts\python.exe .\main.py run --automas genshin zzz
 ```
 
-避免在 AUTO-MAS 的手动或定时队列里同时启动使用前台的任务。流程中止或超时时，检查 AUTO-MAS 调度台中的任务详情，确认上游已停止后再运行。
+同款游戏有多个托管时，可按[查询托管与账号 ID](maa-upstream.md#3-查询托管与账号-id)指定一个。流程中止或超时时，在 AUTO-MAS 调度台核实本次任务状态。

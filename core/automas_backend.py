@@ -4,27 +4,37 @@ import http.client
 import json
 import re
 import time
+from dataclasses import dataclass
 from uuid import UUID
 
 from core.config_loader import GameConfig
 from core.errors import RunAborted
 
-_SCRIPT_TYPES = {
-    "honkai3": "MaaFWConfig",
-    "endfield": "MaaFWConfig",
-    "genshin": "BetterGIConfig",
-    "zzz": "ZzzOdConfig",
+DEFAULT_PORT = 36163
+_SPECIALIZED_GAMES = {
+    "HSRConfig": "starrail",
+    "MaaEndConfig": "endfield",
+    "BetterGIConfig": "genshin",
+    "ZzzOdConfig": "zzz",
 }
 _MAA_PROJECTS = {
     "honkai3": "https://github.com/miaojiuqing/maa_bbb",
     "endfield": "https://github.com/maaend/maaend",
+    "bhxy2": "https://github.com/freeze-12/maabh2",
 }
+AUTOMAS_GAMES = frozenset((*_SPECIALIZED_GAMES.values(), *_MAA_PROJECTS))
 _ACCOUNT_TOTALS = re.compile(r"^ {4}已完成账号数：([0-9]+)；未完成账号数：([0-9]+)$", re.MULTILINE)
 _MAX_RESPONSE = 4 * 1024 * 1024
 
 
 class _ApiUnavailable(ValueError):
     pass
+
+
+@dataclass(frozen=True)
+class AutoMasProfile:
+    script_id: str
+    name: str
 
 
 def _uuid(value: object, field: str) -> str:
@@ -36,11 +46,14 @@ def _uuid(value: object, field: str) -> str:
     raise ValueError(f"AUTO-MAS {field} 应为 UUID")
 
 
-def _port(game: GameConfig) -> int:
-    port = game.options.get("automas_port", 36163)
+def _validate_port(port: object) -> int:
     if type(port) is not int or not 1 <= port <= 65535:
         raise ValueError("automas_port 应为 1 到 65535 的整数")
     return port
+
+
+def _port(game: GameConfig) -> int:
+    return _validate_port(game.options.get("automas_port", DEFAULT_PORT))
 
 
 def _request(port: int, path: str, payload: dict | None = None, *, timeout: float = 5) -> dict:
@@ -76,34 +89,86 @@ def _check_success(data: dict, action: str) -> None:
         raise ValueError(f"AUTO-MAS {action}：{message}")
 
 
+def _check_health(port: int) -> None:
+    health = _request(port, "/api/core/health")
+    if health.get("ready") is not True or health.get("protocol") != 1:
+        raise ValueError("AUTO-MAS 尚未就绪或接口版本不兼容，请参照 Windows 手册")
+
+
+def _maa_repository(port: int, script_id: str) -> str | None:
+    response = _request(port, "/api/scripts/maafw/preview", {"scriptId": script_id})
+    _check_success(response, "检查 MFW 资源")
+    data = response.get("data")
+    project = data.get("project") if isinstance(data, dict) else None
+    repository = project.get("github") if isinstance(project, dict) else None
+    return repository.rstrip("/").casefold() if isinstance(repository, str) else None
+
+
+def discover_automas(port: int, game_ids: tuple[str, ...]) -> dict[str, tuple[AutoMasProfile, ...]]:
+    """从既有托管识别支持的游戏，名称只用于显示。"""
+    if not game_ids:
+        return {}
+    _validate_port(port)
+    _check_health(port)
+    scripts = _request(port, "/api/scripts/get", {})
+    _check_success(scripts, "读取托管列表")
+    index = scripts.get("index")
+    data = scripts.get("data")
+    if not isinstance(index, list) or not isinstance(data, dict) or any(not isinstance(row, dict) for row in index):
+        raise ValueError("AUTO-MAS 返回的托管列表格式不兼容")
+
+    profiles: dict[str, list[AutoMasProfile]] = {game_id: [] for game_id in game_ids}
+    repositories = {repository: game_id for game_id, repository in _MAA_PROJECTS.items() if game_id in profiles}
+    for row in index:
+        script_type = row.get("type")
+        if not isinstance(script_type, str):
+            raise ValueError("AUTO-MAS 返回的托管类型无效")
+        game_id = _SPECIALIZED_GAMES.get(script_type)
+        if script_type == "MaaFWConfig" and repositories:
+            script_id = _uuid(row.get("uid"), "托管 ID")
+            try:
+                game_id = repositories.get(_maa_repository(port, script_id))
+            except _ApiUnavailable:
+                raise
+            except ValueError:
+                # 未完成资源配置的托管暂时无法确认所属游戏。
+                continue
+        if game_id not in profiles:
+            continue
+        script_id = _uuid(row.get("uid"), "托管 ID")
+        script = data.get(script_id)
+        info = script.get("Info") if isinstance(script, dict) else None
+        name = info.get("Name") if isinstance(info, dict) else None
+        profiles[game_id].append(AutoMasProfile(script_id, name if isinstance(name, str) and name else script_id))
+    return {game_id: tuple(matched) for game_id, matched in profiles.items()}
+
+
 def check_automas(game_id: str, game: GameConfig) -> None:
-    if game_id not in _SCRIPT_TYPES:
+    if game_id not in AUTOMAS_GAMES:
         raise ValueError(f"AUTO-MAS 后端不支持 {game_id}")
     port = _port(game)
     script_id = _uuid(game.options.get("script_id"), "script_id")
     user_id = _uuid(game.options["user_id"], "user_id") if "user_id" in game.options else None
 
-    health = _request(port, "/api/core/health")
-    if health.get("ready") is not True or health.get("protocol") != 1:
-        raise ValueError("AUTO-MAS 尚未就绪或接口版本不兼容，请参照 Windows 手册")
+    _check_health(port)
     scripts = _request(port, "/api/scripts/get", {"scriptId": script_id})
     _check_success(scripts, "检查托管")
     index = scripts.get("index")
-    if (
-        not isinstance(index, list) or len(index) != 1
-        or not isinstance(index[0], dict)
-        or index[0].get("uid") != script_id or index[0].get("type") != _SCRIPT_TYPES[game_id]
+    if not (
+        isinstance(index, list) and len(index) == 1
+        and isinstance(index[0], dict) and index[0].get("uid") == script_id
     ):
-        raise ValueError(f"AUTO-MAS 托管 {script_id} 必须是 {_SCRIPT_TYPES[game_id]}")
+        raise ValueError(f"AUTO-MAS 未返回指定托管 {script_id}")
 
-    if game_id in _MAA_PROJECTS:
-        response = _request(port, "/api/scripts/maafw/preview", {"scriptId": script_id})
-        _check_success(response, "检查 MFW 资源")
-        data = response.get("data")
-        project = data.get("project") if isinstance(data, dict) else None
-        repository = project.get("github") if isinstance(project, dict) else None
-        if not isinstance(repository, str) or repository.rstrip("/").casefold() != _MAA_PROJECTS[game_id]:
+    script_type = index[0].get("type")
+    if script_type == "MaaFWConfig" and game_id in _MAA_PROJECTS:
+        if _maa_repository(port, script_id) != _MAA_PROJECTS[game_id]:
             raise ValueError(f"AUTO-MAS 托管 {script_id} 未使用 {game.name} 的上游项目")
+    elif not isinstance(script_type, str) or _SPECIALIZED_GAMES.get(script_type) != game_id:
+        expected = [name for name, target in _SPECIALIZED_GAMES.items() if target == game_id]
+        if game_id in _MAA_PROJECTS:
+            expected.append("MaaFWConfig")
+        raise ValueError(f"AUTO-MAS 托管 {script_id} 应使用 {'或'.join(expected)}")
 
     if user_id is not None:
         response = _request(port, "/api/scripts/user/get", {"scriptId": script_id, "userId": user_id})
@@ -195,7 +260,7 @@ def _request_stop(port: int, task_id: str, script_id: str, user_id: str | None) 
 
 def run_automas(game_id: str, game: GameConfig) -> None:
     # 调度器已调用 check_automas 核对托管 ID 和游戏来源。
-    if game_id not in _SCRIPT_TYPES:
+    if game_id not in AUTOMAS_GAMES:
         raise ValueError(f"AUTO-MAS 后端不支持 {game_id}")
     port = _port(game)
     script_id = _uuid(game.options.get("script_id"), "script_id")

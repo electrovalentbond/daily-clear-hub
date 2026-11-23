@@ -11,11 +11,11 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.yaml"
 DEFAULT_LOCAL_CONFIG_PATH = PROJECT_ROOT / "config.local.yaml"
 UPSTREAM_BACKENDS = {
     "honkai3": ("automas",),
-    "starrail": ("march7th",),
+    "starrail": ("automas", "march7th"),
     "zzz": ("automas",),
     "genshin": ("automas",),
     "pcr": ("pcr_script",),
-    "bhxy2": ("hka",),
+    "bhxy2": ("automas", "hka"),
     "endfield": ("automas",),
 }
 BACKEND_OPTIONS = {

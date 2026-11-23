@@ -2,7 +2,7 @@
 
 2026 年 11 月 23 日核对上游源码及发布版本。源码链接指向本次检查的提交或发行标签。
 
-Hub 统一了队列入口、日常选择、运行超时和结果判定。七款游戏都可使用上游自带的素材，实际任务范围由对应工具的游戏区服、登录状态与任务配置决定。内置 ok-script 路线依然适用于使用本机模板的免费领奖。
+Hub 统一了队列入口、日常选择、运行超时和结果判定。七款游戏都可使用上游自带的素材。六款游戏可在 AUTO-MAS 集中设置，公主连结 B 服可从同一个 Hub 命令发现并运行。实际任务范围由区服、登录与托管设置决定。内置 ok-script 路线依然适用于使用本机模板的免费领奖。
 
 ## MAA 与 MaaFramework
 
@@ -18,7 +18,7 @@ Hub 统一了队列入口、日常选择、运行超时和结果判定。七款�
 
 ### 崩坏：星穹铁道
 
-旧开拓力流程缺少关卡选择、战斗结束和领取消耗检查。内置步骤只领取邮件，起点是已打开的手机菜单，按实际布局校准。可选三月七小助手的 `routine` 按它的配置安排清开拓力、委托、实训与领奖，并提供命令行退出码。它会比 `daily` 多执行日常准备阶段，后者仍可按配置先领奖再做实训。[手机菜单和邮件](https://github.com/moesnow/March7thAssistant/blob/311fa27974216a0d2824d111a3ad81845af7e297/assets/touch_720/screens.json#L36-L58) · [日常编排](https://github.com/moesnow/March7thAssistant/blob/311fa27974216a0d2824d111a3ad81845af7e297/tasks/daily/daily.py#L47-L87) · [退出码](https://github.com/moesnow/March7thAssistant/blob/311fa27974216a0d2824d111a3ad81845af7e297/main.py#L24-L33)
+旧开拓力流程缺少关卡选择、战斗结束和领取消耗检查。内置步骤只领取邮件，起点是已打开的手机菜单，按实际布局校准。可在 AUTO-MAS 的 HSR 托管中复用三月七小助手配置。独立三月七后端仍可运行 `routine`，按其配置安排清开拓力、委托、实训与领奖，并提供命令行退出码。它会比 `daily` 多执行日常准备阶段，后者仍可按配置先领奖再做实训。[手机菜单和邮件](https://github.com/moesnow/March7thAssistant/blob/311fa27974216a0d2824d111a3ad81845af7e297/assets/touch_720/screens.json#L36-L58) · [日常编排](https://github.com/moesnow/March7thAssistant/blob/311fa27974216a0d2824d111a3ad81845af7e297/tasks/daily/daily.py#L47-L87) · [退出码](https://github.com/moesnow/March7thAssistant/blob/311fa27974216a0d2824d111a3ad81845af7e297/main.py#L24-L33)
 
 ### 绝区零
 
@@ -34,7 +34,9 @@ Princess-connection-farm 用不同的页面和按钮状态识别礼物与任务�
 
 ### 崩坏学园 2
 
-旧流程会在商店匹配通用「购买」，冒险也可能点击「挑战」。HKA 按价格为零、剩余免费次数和结算变化处理这类日常。Hub 内置从「社交 → 我的消息」收邮件和从「任务 → 存在感」领奖。可选 HKA 后端按用户配置执行商店、免费快捷战斗、体力本、探险和领奖等工作，等待进程并核对最后的 JSON 运行报告。退出码为零时仍要确认报告，因为取消也可返回零。[HKA 免费检查](https://github.com/lolineet/Honkai2Automation/blob/08052330d5294b53b5578416fbbd97c8aca3b180/hka/game_flows.py#L553-L622) · [快捷战斗](https://github.com/lolineet/Honkai2Automation/blob/08052330d5294b53b5578416fbbd97c8aca3b180/hka/game_flows.py#L695-L798) · [命令行结果](https://github.com/lolineet/Honkai2Automation/blob/08052330d5294b53b5578416fbbd97c8aca3b180/hka/cli.py#L64-L94) · [最终运行报告](https://github.com/lolineet/Honkai2Automation/blob/08052330d5294b53b5578416fbbd97c8aca3b180/hka/runner.py#L188-L216)
+旧流程会在商店匹配通用「购买」，冒险也可能点击「挑战」。HKA 按价格为零、剩余免费次数和结算变化处理这类日常。Hub 内置从「社交 → 我的消息」收邮件和从「任务 → 存在感」领奖。新增 MaaBH2，可把每日与每周领奖、社团等任务集中到 AUTO-MAS。[MaaBH2 上游配置](maabh2.md)
+
+可选 HKA 后端按用户配置执行商店、免费快捷战斗、体力本、探险和领奖等工作，等待进程并核对最后的 JSON 运行报告。退出码为零时仍要确认报告，因为取消也可返回零。[HKA 免费检查](https://github.com/lolineet/Honkai2Automation/blob/08052330d5294b53b5578416fbbd97c8aca3b180/hka/game_flows.py#L553-L622) · [快捷战斗](https://github.com/lolineet/Honkai2Automation/blob/08052330d5294b53b5578416fbbd97c8aca3b180/hka/game_flows.py#L695-L798) · [命令行结果](https://github.com/lolineet/Honkai2Automation/blob/08052330d5294b53b5578416fbbd97c8aca3b180/hka/cli.py#L64-L94) · [最终运行报告](https://github.com/lolineet/Honkai2Automation/blob/08052330d5294b53b5578416fbbd97c8aca3b180/hka/runner.py#L188-L216)
 
 ### 明日方舟：终末地
 

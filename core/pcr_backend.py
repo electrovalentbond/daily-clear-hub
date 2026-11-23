@@ -4,7 +4,7 @@ import json
 from collections.abc import Callable
 from pathlib import Path
 from shutil import which
-from tempfile import TemporaryFile
+from tempfile import TemporaryDirectory, TemporaryFile
 
 import yaml
 
@@ -19,6 +19,16 @@ def _python_path(game: GameConfig) -> Path:
     return PROJECT_ROOT / game.string("executable")
 
 
+def _config_payload(game: GameConfig) -> object:
+    if "_pcr_runtime_config" in game.options:
+        return game.options["_pcr_runtime_config"]
+    config_path = game.path("pcr_config")
+    try:
+        return yaml.safe_load(config_path.read_text(encoding="utf-8-sig"))
+    except (OSError, UnicodeError, yaml.YAMLError) as exc:
+        raise ValueError(f"无法读取 pcr-script 配置：{config_path}（{exc}）") from exc
+
+
 def check_pcr(game: GameConfig) -> None:
     python = _python_path(game)
     if not python.is_file() or not python.name.lower().startswith("python"):
@@ -30,11 +40,7 @@ def check_pcr(game: GameConfig) -> None:
         if not (project / relative).is_file():
             raise ValueError(f"pcr-script 源码目录缺少 {relative}：{project}")
 
-    config_path = game.path("pcr_config")
-    try:
-        config = yaml.safe_load(config_path.read_text(encoding="utf-8-sig"))
-    except (OSError, UnicodeError, yaml.YAMLError) as exc:
-        raise ValueError(f"无法读取 pcr-script 配置：{config_path}（{exc}）") from exc
+    config = _config_payload(game)
     if not isinstance(config, dict):
         raise ValueError("pcr-script 配置应为 YAML 映射")
 
@@ -66,9 +72,22 @@ def check_pcr(game: GameConfig) -> None:
 
 
 def run_pcr(game: GameConfig, run_command: Callable[..., int]) -> None:
+    if "_pcr_runtime_config" not in game.options:
+        _run_cli(game, run_command, game.path("pcr_config"))
+        return
+    with TemporaryDirectory(prefix="daily-clear-pcr-") as directory:
+        config_path = Path(directory) / "daily_config.yml"
+        config_path.write_text(
+            yaml.safe_dump(_config_payload(game), allow_unicode=True),
+            encoding="utf-8",
+        )
+        _run_cli(game, run_command, config_path)
+
+
+def _run_cli(game: GameConfig, run_command: Callable[..., int], config_path: Path) -> None:
     command = [
         str(_python_path(game)), "-X", "utf8", "-u", "daily_task.py",
-        "--config", str(game.path("pcr_config")),
+        "--config", str(config_path),
     ]
     with TemporaryFile() as output:
         code = run_command(command, game.path("project_dir"), game.timeout, stdout=output)

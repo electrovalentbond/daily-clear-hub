@@ -4,7 +4,7 @@
 
 ## 1. 安装 AUTO-MAS
 
-下面的 PowerShell 命令下载已核对接口的 Windows x64 便携版 v5.8.0，并核对官方发布的 SHA-256。已有该版本，可以复用原目录。[AUTO-MAS v5.8.0](https://github.com/AUTO-MAS-Project/AUTO-MAS/releases/tag/v5.8.0)
+使用 [Windows 批量安装脚本](windows.md#1-一次准备所选游戏)后，可以直接打开输出的 AUTO-MAS 程序，跳到项目设置。以下命令用于单独下载及校验 Windows x64 便携版 v5.8.0。[AUTO-MAS v5.8.0](https://github.com/AUTO-MAS-Project/AUTO-MAS/releases/tag/v5.8.0)
 
 ```powershell
 $Tools = Join-Path $env:USERPROFILE 'Games\DailyAutomation'
@@ -42,7 +42,7 @@ Invoke-RestMethod -Uri "$Mas/api/core/health" |
 
 ## 2. 安装并设置上游项目
 
-在上面定义了 `$Tools` 和 `Expand-VerifiedRelease` 的 PowerShell 窗口下载所需游戏的项目。有现成发行包时使用包含 `interface.json` 的目录，保留同包的资源和 Agent。只运行其中一款游戏时，执行对应一段。 [Maa_bbb v1.13.22](https://github.com/miaojiuqing/Maa_bbb/releases/tag/v1.13.22) · [MaaEnd v3.2.0](https://github.com/MaaEnd/MaaEnd/releases/tag/v3.2.0)
+使用批量脚本输出的项目目录，或在上面定义了 `$Tools` 和 `Expand-VerifiedRelease` 的 PowerShell 窗口单独下载。目录需包含 `interface.json` 及同包的资源和 Agent。只运行其中一款游戏时，执行对应一段。 [Maa_bbb v1.13.22](https://github.com/miaojiuqing/Maa_bbb/releases/tag/v1.13.22) · [MaaEnd v3.2.0](https://github.com/MaaEnd/MaaEnd/releases/tag/v3.2.0)
 
 ### 崩坏 3
 
@@ -80,7 +80,7 @@ Get-ChildItem -LiteralPath $EndfieldRoot -Filter 'interface.json' -File -Recurse
 
 ## 3. 查询托管与账号 ID
 
-在 PowerShell 运行下列只读查询。按设置时起的名字和托管类型认出目标，复制其 `ScriptId`。Maa_bbb 和 MaaEnd 两项都会显示 `MaaFWConfig`。[AUTO-MAS 托管查询](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/api/scripts/management.py#L303-L334)
+同款游戏有多个托管且想保留它们时，可运行下列只读查询来选择目标。按名称和类型找到对应的 `ScriptId`。Maa_bbb 和 MaaEnd 两项都会显示 `MaaFWConfig`。[AUTO-MAS 托管查询](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/api/scripts/management.py#L303-L334)
 
 ```powershell
 $Mas = 'http://127.0.0.1:36163'
@@ -108,30 +108,15 @@ $Accounts.index | ForEach-Object {
 }
 ```
 
-## 4. 加入 Hub 队列
+## 4. 从 Hub 运行
 
-在 Hub 的 `config.local.yaml` 合并以下配置，换成实际托管 ID。只有一个账号时可省略 `user_id`。如果使用不同端口，再为该游戏设置 `automas_port`。
-
-```yaml
-games:
-  honkai3:
-    enabled: true
-    backend: automas
-    script_id: '11111111-1111-4111-8111-111111111111'
-    timeout_sec: 1800
-  endfield:
-    enabled: true
-    backend: automas
-    script_id: '22222222-2222-4222-8222-222222222222'
-    timeout_sec: 1800
-    # user_id: '33333333-3333-4333-8333-333333333333'
-```
-
-回到 Hub 仓库根目录运行。只配置一款时，将命令末尾改成一项。两项都验证后，可以通过 `run` 运行全部已启用游戏。
+回到 Hub 仓库根目录运行。只配置一款时，将命令末尾改成一项。
 
 ```powershell
-& .\.venv\Scripts\python.exe .\main.py check honkai3 endfield
-& .\.venv\Scripts\python.exe .\main.py run honkai3 endfield
+& .\.venv\Scripts\python.exe .\main.py check --automas honkai3 endfield
+& .\.venv\Scripts\python.exe .\main.py run --automas honkai3 endfield
 ```
 
-`check` 查询本机托管和其实际加载的 MFW 项目，不启动游戏。Hub 每次提交一个托管，跟踪此次独立的任务 ID，其账号报告显示完成后才算成功。超时或丢失结果时队列停止，用 AUTO-MAS 调度台核实状态后再继续。MFW 资源识别、Agent 缺失和游戏开始位置问题也在调度台检查。[AUTO-MAS 调度接口](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/api/dispatch.py#L122-L219) · [账号终态汇总](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/core/task_manager/manager.py#L2376-L2442)
+每款只有一个匹配托管时，Hub 会自动选择。需保留多个托管时，在本机 `config.local.yaml` 为相应游戏设置 `backend: automas` 和上节取得的 `script_id`。如有多个启用账号，还可用 `user_id` 限制为其中一个。
+
+`check` 查询本机托管和其实际加载的 MFW 项目。Hub 提交托管后根据本轮任务 ID 查询账号完成报告。超时或结果丢失时队列停止，用 AUTO-MAS 调度台核实状态。MFW 资源识别、Agent 缺失和游戏开始位置问题也在调度台检查。[AUTO-MAS 调度接口](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/api/dispatch.py#L122-L219) · [账号终态汇总](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/core/task_manager/manager.py#L2376-L2442)

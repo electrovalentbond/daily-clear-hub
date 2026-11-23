@@ -2,7 +2,25 @@
 
 Daily Clear Hub 可以直接运行 [pcr-script](https://github.com/Gibberer/pcr-script/tree/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3)。上游已有识别素材，使用 Windows x64 和 Python 3.12。以下步骤使用雷电模拟器中已经登录的哔哩哔哩国服客户端（包名 `com.bilibili.priconne`）。把上游脚本与 Hub 装在各自的虚拟环境中。首次运行需联网下载国服静态游戏数据。[上游数据加载实现](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/masterdata.py#L184)
 
-## 1. 安装上游和配置任务
+## 自动设置
+
+在 Hub 仓库根目录运行以下命令。安装脚本按默认路径把公主连结上游放在 `%USERPROFILE%\Games\DailyAutomation\pcr-script`。
+
+```powershell
+& .\scripts\setup-windows.ps1 -Games pcr
+```
+
+使用 16:9 横屏并开启 ADB，打开公主连结 B 服并登录。上游基准为 **960×540**，匹配器会按画面缩放。复用 MaaBH2 的 1280×720 模拟器时，可先保持原尺寸完成单款联调。检查游戏内保存的「日程表」及其中设置的扫荡和资源用量。Hub 会查找已授权且安装了 B 服的唯一 ADB 设备，执行日程表、任务领奖和非体力礼物领取。自动流程关闭装备分解，并在运行时生成临时任务配置。[上游模板缩放代码](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/templates.py#L78-L108)
+
+```powershell
+& .\.venv\Scripts\python.exe .\main.py plan --automas pcr
+& .\.venv\Scripts\python.exe .\main.py check --automas pcr
+& .\.venv\Scripts\python.exe .\main.py run --automas pcr
+```
+
+查找 ADB 时，Hub 会优先使用同一工具目录下的 `platform-tools\adb.exe`，随后检查 PATH、Android SDK 和雷电 9 常用安装位置。可用 `adb devices -l` 查看已授权设备。若多个设备安装了 B 服，只保留目标设备在线，或在本机配置设置 `games.pcr.adb_serial`。工具装在其他目录时，在各子命令加 `--tools-root <目录>`。自定义日常任务可以沿用下面的手动配置。
+
+## 手动安装与任务配置
 
 ```powershell
 $PcrRoot = 'C:\Tools\pcr-script'
@@ -49,7 +67,7 @@ Task:
 
 首次使用前检查游戏中已保存的「日程表」。添加快捷扫荡、商店购买、角色强化等任务时，按上游任务指南核对预设、体力和货币设置。若使用雷电窗口驱动，可填写 `Extra.dnpath`，并只打开目标 0 号实例。上游命令从这一实例启动游戏，并使用第一个可见实例进行操作。[上游命令行指南](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/docs/guides/command-line.md) · [上游任务指南](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/docs/guides/tasks.md)
 
-## 2. 从 Hub 执行
+## 使用手动配置运行
 
 在 Hub 的 `config.local.yaml` 合并以下设置。
 
