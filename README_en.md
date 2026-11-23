@@ -1,6 +1,6 @@
 # Daily Clear Hub
 
-Run daily jobs for seven games from one Windows queue. AUTO-MAS manages six games and Hub discovers their saved profiles. Princess Connect Bilibili CN uses pcr-script through the same command. Upstream engines include their recognition resources.
+Run seven games from one AUTO-MAS queue on Windows. Choose the supported daily and weekly jobs in each profile. The Princess Connect Bilibili CN profile uses pcr-script and its recognition resources.
 
 - [Windows setup and commands (Chinese)](docs/windows.md)
 - [Implementation review and upstream sources (Chinese)](docs/implementation-review.md)
@@ -10,11 +10,8 @@ Follow the Windows guide to prepare the games and configure their saved profiles
 
 ```powershell
 & .\scripts\setup-windows.ps1 -Games honkai3,starrail,zzz,genshin,pcr,bhxy2,endfield
-& .\.venv\Scripts\python.exe .\main.py plan --automas
-& .\.venv\Scripts\python.exe .\main.py check --automas
-& .\.venv\Scripts\python.exe .\main.py run --automas
 ```
 
-Pass game IDs to limit the queue, for example `run --automas endfield`. Existing manual YAML configurations still work with `run`. The optional `native` backend uses [ok-script](https://github.com/ok-oldking/ok-script) and local templates.
+Create the profiles and add them to an AUTO-MAS scheduling queue, then select the queue and start it from the dispatch center. The [optional CLI](docs/windows.md) still supports `run --automas` and manual YAML configurations. The `native` backend uses [ok-script](https://github.com/ok-oldking/ok-script) and local templates.
 
 On macOS or Linux, install PyYAML in a local virtual environment and run `./run_tests.sh` for portable tests.

@@ -11,6 +11,7 @@ from core.config_loader import GameConfig
 
 PCR_PACKAGE = "com.bilibili.priconne"
 PCR_SOURCE_REVISION = "d1eb2120599a5bc42ce934657f7788e1a8f0bfc3"
+PCR_DAILY_TASKS = (("schedule",), ("get_quest_reward",), ("get_gift", True))
 _MANUAL_FIELDS = {"project_dir", "executable", "pcr_config"}
 
 
@@ -36,7 +37,7 @@ def _adb_output(adb: Path, *arguments: str) -> str:
     return result.stdout if result.returncode == 0 else ""
 
 
-def _find_target(adb: Path, requested: str) -> str | None:
+def find_pcr_target(adb: Path, requested: str) -> str | None:
     serials = []
     for line in _adb_output(adb, "devices").splitlines():
         serial, _, state = line.partition("\t")
@@ -72,20 +73,26 @@ def discover_pcr(game: GameConfig, tools_root: Path) -> GameConfig | None:
     if not isinstance(requested, str):
         raise ValueError("games.pcr.adb_serial 应为字符串")
     try:
-        serial = _find_target(adb, requested.strip())
+        serial = find_pcr_target(adb, requested.strip())
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise ValueError(f"无法使用 {adb} 检查公主连结模拟器") from exc
     if serial is None:
         return None
 
+    return configure_pcr(game, project, adb, serial, PCR_DAILY_TASKS)
+
+
+def configure_pcr(
+    game: GameConfig, project: Path, adb: Path, serial: str, tasks: tuple[tuple[str | bool, ...], ...]
+) -> GameConfig:
     timeout = game.timeout if game.backend == "pcr_script" else 1800
     return replace(game, backend="pcr_script", timeout=timeout, options={
         **game.options,
         "project_dir": str(project),
-        "executable": str(python),
+        "executable": str(project / ".venv" / "Scripts" / "python.exe"),
         "_pcr_runtime_config": {
             "Extra": {"adb_path": str(adb), "adb_serial": serial, "dnpath": ""},
             "Gift": {"auto_dismantle": False},
-            "Task": {1: [["schedule"], ["get_quest_reward"], ["get_gift", True]]},
+            "Task": {1: [list(task) for task in tasks]},
         },
     })

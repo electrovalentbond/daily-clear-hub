@@ -1,0 +1,21 @@
+{
+    "DailyClearPcrRun": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr"}
+        }
+    },
+    "DailyClearPcrSchedule": {
+        "enabled": false,
+        "attach": {"enabled": false}
+    },
+    "DailyClearPcrQuestReward": {
+        "enabled": false,
+        "attach": {"enabled": false}
+    },
+    "DailyClearPcrGift": {
+        "enabled": false,
+        "attach": {"enabled": false}
+    }
+}

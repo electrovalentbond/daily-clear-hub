@@ -6,6 +6,8 @@ import os
 import signal
 import subprocess
 import sys
+import time
+from collections.abc import Callable
 from contextlib import contextmanager
 from dataclasses import asdict
 from pathlib import Path
@@ -94,12 +96,28 @@ def _stop_process(process: subprocess.Popen) -> None:
         raise RunAborted(f"任务进程 {process.pid} 仍在运行，队列已停止") from exc
 
 
-def run_command(command: list[str], cwd: Path, timeout: int, *, stdout=None) -> int:
+def run_command(
+    command: list[str], cwd: Path, timeout: int, *, stdout=None, cancelled: Callable[[], bool] | None = None
+) -> int:
     kwargs = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
     process = subprocess.Popen(command, cwd=cwd, stdin=subprocess.DEVNULL, stdout=stdout, **kwargs)
     try:
-        return process.wait(timeout=timeout)
-    except (subprocess.TimeoutExpired, KeyboardInterrupt):
+        if cancelled is None:
+            return process.wait(timeout=timeout)
+        deadline = time.monotonic() + timeout
+        while True:
+            if cancelled():
+                raise RunAborted("任务已取消")
+            remaining = deadline - time.monotonic()
+            if remaining <= 1:
+                return process.wait(timeout=max(remaining, 0))
+            try:
+                return process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                continue
+    except BaseException:
+        if process.poll() is not None:
+            raise
         try:
             _stop_process(process)
         except (OSError, subprocess.TimeoutExpired) as exc:

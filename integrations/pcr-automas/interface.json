@@ -1,0 +1,69 @@
+{
+    "interface_version": 2,
+    "name": "DailyClearPcr",
+    "label": "公主连结 B 服",
+    "version": "1.0.0",
+    "description": "选择运行日常的模拟器实例。首次在模拟器中登录 B 服，检查游戏内保存的日程表。",
+    "controller": [
+        {
+            "name": "Android",
+            "label": "安卓模拟器",
+            "type": "Adb",
+            "display_short_side": 720
+        }
+    ],
+    "resource": [
+        {
+            "name": "Bilibili",
+            "label": "哔哩哔哩国服",
+            "path": ["{PROJECT_DIR}/resource"]
+        }
+    ],
+    "agent": {
+        "child_exec": "python",
+        "child_args": ["-X", "utf8", "-u", "./agent.py"]
+    },
+    "task": [
+        {
+            "name": "DailyClearPcrDaily",
+            "label": "公主连结日常",
+            "entry": "DailyClearPcrRun",
+            "default_check": true,
+            "description": "打开 B 服客户端，依次执行已勾选的日常事项。",
+            "option": ["DailyActivities"]
+        }
+    ],
+    "option": {
+        "DailyActivities": {
+            "type": "checkbox",
+            "label": "日常事项",
+            "min_count": 1,
+            "default_case": ["Schedule", "QuestReward", "Gift"],
+            "cases": [
+                {
+                    "name": "Schedule",
+                    "label": "执行游戏内日程表",
+                    "description": "按游戏内已保存的日程表执行，请先核对其中的扫荡和资源用量。",
+                    "pipeline_override": {
+                        "DailyClearPcrSchedule": {"attach": {"enabled": true}}
+                    }
+                },
+                {
+                    "name": "QuestReward",
+                    "label": "领取任务奖励",
+                    "description": "领取每日、普通和称号任务已完成的奖励。",
+                    "pipeline_override": {
+                        "DailyClearPcrQuestReward": {"attach": {"enabled": true}}
+                    }
+                },
+                {
+                    "name": "Gift",
+                    "label": "领取非体力礼物",
+                    "pipeline_override": {
+                        "DailyClearPcrGift": {"attach": {"enabled": true}}
+                    }
+                }
+            ]
+        }
+    }
+}

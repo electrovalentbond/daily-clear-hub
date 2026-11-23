@@ -101,6 +101,12 @@ class TestScheduler(unittest.TestCase):
         with self.assertRaises(subprocess.TimeoutExpired):
             run_command([sys.executable, "-c", "import time; time.sleep(10)"], cwd, 1)
 
+    def test_process_cancellation(self):
+        with self.assertRaisesRegex(RunAborted, "任务已取消"):
+            run_command(
+                [sys.executable, "-c", "import time; time.sleep(10)"], Path.cwd(), 10, cancelled=lambda: True,
+            )
+
     def test_plan_works_without_ok_script_or_templates(self):
         with tempfile.TemporaryDirectory() as tmp:
             missing_local = str(Path(tmp) / DEFAULT_LOCAL_CONFIG_PATH.name)

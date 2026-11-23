@@ -1,6 +1,6 @@
 # Windows 安装与运行
 
-推荐用 **AUTO-MAS 集中配置六款游戏**，再由 Hub 自动读取托管。崩坏 3、终末地和崩坏学园 2 使用 MaaFramework 项目。星铁、原神和绝区零使用 AUTO-MAS 的现成专项。公主连结 B 服也走同一条 Hub 命令，运行时识别模拟器并调用 pcr-script。这个模式使用上游识别素材，一般无需 `config.local.yaml`。
+在 **AUTO-MAS** 中配置七款游戏，放进同一个调度队列。日常使用时打开「调度中心」，选中队列并点「开始执行」。AUTO-MAS 会依次启动已配置的客户端和模拟器，执行各账号勾选的任务。识别素材随上游项目提供。
 
 ## 1. 一次准备所选游戏
 
@@ -32,7 +32,7 @@ Set-Location $Hub
 & .\scripts\setup-windows.ps1 -Games honkai3,starrail,zzz,genshin,pcr,bhxy2,endfield
 ```
 
-可以在 `-Games` 里只列需要的游戏。省略 `-Games` 会准备六款 AUTO-MAS 游戏。脚本下载并校验正式包、准备 Python 环境，再输出 AUTO-MAS 程序和各游戏的资源路径。原神的 BetterGI 安装器需打开一次，安装路径可用脚本给出的建议。已用过上游工具时，可以直接复用已有目录。若当前 PowerShell 的执行策略阻止脚本，可在该窗口运行 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` 后重试。
+可以在 `-Games` 里只列需要的游戏。脚本会校验下载包，并输出 AUTO-MAS 程序和各游戏的项目路径。原神的 BetterGI 安装器需运行一次，可以按脚本输出的建议目录安装。已安装的上游工具可以复用。若当前 PowerShell 的执行策略阻止脚本，可在该窗口运行 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` 后重试。
 
 如果需要通过代理下载，在启动脚本前设置当前 PowerShell 窗口的代理。把 `7890` 换成实际 HTTP 或混合代理端口。
 
@@ -43,25 +43,45 @@ $env:HTTPS_PROXY = 'http://127.0.0.1:7890'
 
 遇到 `curl 56` 等连接中断时，脚本会自动重试。若仍中断，保留工具目录 `Downloads` 里的 `.part` 文件并重跑同一条命令。支持续传的服务器会从已有字节继续。安装包和公主连结的源码 ZIP 通过 SHA-256 校验后才会解压或交给安装器。解压失败后也可直接重跑，脚本会复用 `Downloads` 中已校验的 ZIP。
 
-工具默认放在 `$env:USERPROFILE\Games\DailyAutomation`。若用户名含中文或安装路径需要简化，可指定同一个新目录。自动识别公主连结时，把该目录一并传给 Hub。
+工具默认放在 `$env:USERPROFILE\Games\DailyAutomation`。以前安装时传过 `-ToolsRoot`，重跑时沿用原值。已有七款的上游工具时，更新仓库后只需重新准备公主连结的 MFW 项目。若安装输出中已出现 `pcr AUTO-MAS project:`，可以直接使用该目录。
 
 ```powershell
-& .\scripts\setup-windows.ps1 -Games pcr,bhxy2 -ToolsRoot 'C:\Tools\DailyAutomation'
-& .\.venv\Scripts\python.exe .\main.py plan --automas --tools-root 'C:\Tools\DailyAutomation'
+git pull --ff-only
+& .\scripts\setup-windows.ps1 -Games pcr
 ```
 
-## 2. 托管设置集中在 AUTO-MAS
+## 2. 在 AUTO-MAS 选择任务和游戏启动方式
 
-打开脚本输出的 `AUTO-MAS.exe`，等待界面就绪。每款游戏只在 AUTO-MAS 建立一次托管，启用相应账号。已有匹配托管就直接复用。选择对应类型和安装目录，再按需要勾选任务。
+打开脚本输出的 `AUTO-MAS.exe`。首次启动需联网准备运行环境。在「托管管理 → 新建托管」为每款游戏选择下列类型。已有托管可直接编辑。每个托管都要「添加账号」并确认账号已启用。单账号可先在游戏中登录一次，使用客户端保存的登录状态。遇到重新登录或验证码提示时，在客户端完成后重试。[AUTO-MAS 使用指南](https://doc.auto-mas.top/docs/user-guide.html)
 
-- **崩坏 3、终末地、崩坏学园 2** 使用同一个「MFW 项目」入口，分别指向 Maa_bbb、MaaEnd、MaaBH2。崩坏 3 和终末地可接管已登录的 PC 游戏窗口。崩坏学园 2 绑定已登录的模拟器及实际渠道。已有 MaaEnd 专项也可识别。[崩坏 3 和终末地设置](maa-upstream.md#2-安装并设置上游项目) · [崩坏学园 2 设置](maabh2.md)
-- **星铁** 首次打开三月七小助手保存日常设置。随后在 AUTO-MAS 选「HSR 脚本」，填写三月七目录并选择「原生配置」复用。仅使用三月七时，SRA 路径留空。AUTO-MAS 负责启动客户端时，指定含 `StarRail.exe` 的目录。[HSR 托管指南](https://doc.auto-mas.top/docs/script-guide/hsr.html)
-- **原神、绝区零** 分别选 BetterGI 和绝区零一条龙专项，复用已保存的一条龙配置及账号实例。需要扫本时，在上游设置队伍、目标和资源消耗。[原神与绝区零首次配置](hoyo-upstream.md)
-- **公主连结 B 服** 使用 `-Games pcr` 安装后，打开已登录的模拟器。Hub 选择唯一在线且安装了 `com.bilibili.priconne` 的 ADB 设备，并使用游戏内日程表、任务领奖和非体力礼物的默认组合。[公主连结 ADB 设置](pcr-upstream.md)
+### 四款 MFW 游戏
 
-使用 Hub 调度时，关闭 AUTO-MAS 自身会同时启动游戏的定时或循环队列。游戏结束后的电源操作设为「无」。
+选「MFW脚本」并导入脚本输出、含 `interface.json` 的项目目录。托管页选控制器和资源，等待「运行环境」准备完成。进入账号的「任务队列」点「添加任务」并选择要执行的项目。单项设置的「运行日」限定星期几。希望周常成功一次后本周自动跳过，可以在托管的「运行配置 → 每周完成后跳过」选中对应任务。[MFW 官方指南](https://doc.auto-mas.top/docs/script-guide/maafw.html)
 
-## 3. 检查并运行
+两款模拟器游戏可以共用同一个雷电实例。在左侧「模拟器管理」点「自动搜索模拟器」并导入，再在两个托管的「控制配置」选同一个「模拟器」和「模拟器实例」，各自填写游戏包名。[模拟器管理](https://doc.auto-mas.top/docs/advanced-features/emulator.html)
+
+- **崩坏 3** 导入 Maa_bbb，选择「桌面端」和匹配的资源，简中键鼠使用「键鼠操作」。到「控制配置 → PC 游戏启动方式」选择「由 MAS 启动和关闭游戏」，再选客户端的「游戏可执行文件」。任务可从作战任务领奖和邮件领取开始。[Maa_bbb 设置](maa-upstream.md#崩坏-3)
+- **终末地** 导入 MaaEnd，PC 官服选择 `Win32-Front` 和「官服」。在「PC 游戏启动方式」选择「由 MAS 启动和关闭游戏」，指定 `Endfield.exe`。任务队列可添加日常奖励、清理智和基建。若客户端要求通过官方启动器，改用「MaaEnd脚本」托管，选择已有 MaaEnd 目录和 `Endfield.exe`，将「游戏启动方式」设为「启动器启动」，再把这个托管加入同一队列。前台控制期间保持桌面解锁。[MaaEnd 设置](maa-upstream.md#明日方舟终末地) · [官方启动器设置](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/frontend/src/views/EditView/Script/components/MaaEndLauncherSection.vue)
+- **崩坏学园 2** 导入 MaaBH2，选「雷电模拟器」和「默认」，绑定已登录的模拟器实例并填写对应渠道包名。B 服用 `com.miHoYo.HSoDv2BiliBiliRelease`。AUTO-MAS 会启动绑定的游戏，任务队列可以从「10. 每日每周任务奖励领取」开始。[MaaBH2 设置](maabh2.md)
+- **公主连结 B 服** 导入 `pcr AUTO-MAS project:` 后面的目录，选「安卓模拟器」和「哔哩哔哩国服」，绑定已登录的模拟器实例。「游戏包名」留空即可，pcr-script 会启动 B 服客户端。在账号的任务队列添加「公主连结日常」，展开「日常事项」勾选日程表、任务领奖和非体力礼物。日程表的扫荡项目和资源用量沿用游戏内设置。[公主连结配置](pcr-upstream.md)
+
+### 三款专项游戏
+
+- **星铁** 先打开一次三月七小助手并保存，让它生成 `config.yaml`。新建「HSR脚本」，「三月七路径」指向含 `March7th Assistant.exe` 的目录，SRA 路径可留空。「由 MAS 启动和关闭游戏」选「是」，「游戏路径」选含 `StarRail.exe` 的文件夹。账号选「独立配置」，在「任务配置」勾选「日常与奖励」、需要的体力与周常模块，并选择三月七引擎。历战余响可设开始日。差分宇宙与货币战争共用本周完成记录。[HSR 托管指南](https://doc.auto-mas.top/docs/script-guide/hsr.html)
+- **原神** 安装并打开一次 BetterGI，在其「启动」页启用「同时启动原神」和「自动进入游戏」，浏览选择游戏客户端，然后退出 BetterGI。新建「BetterGI脚本」，「BetterGI 路径」指向含 `BetterGI.exe` 的目录。账号用「独立配置」，在「任务配置」勾选领取每日奖励、邮件和需要的体力项目。高级设置可从账号页的「配置 BetterGI」进入。队列运行时，BetterGI 根据保存的启动配置打开原神。[BetterGI 托管指南](https://doc.auto-mas.top/docs/script-guide/bettergi.html) · [BetterGI 启动设置](https://www.bettergi.com/quickstart.html)
+- **绝区零** 先打开一次 `OneDragon-RuntimeLauncher.exe` 完成初始化，再退出一条龙。新建「ZZZ-OD脚本」，指定包含该启动器的「ZZZ-OD 安装目录」。单账号选「原生」，在实例管理中把目标实例「设为活跃」，「运行实例」选「仅运行当前」，启动器选「集成」或「自动」。在账号页填写实例的 `ZenlessZoneZero.exe` 完整路径，在「任务配置」启用录像店、刮卡、活跃度领奖等日常。需要周常时可在同页设置恶名狩猎计划。「游戏结束后操作」选「无」，一条龙会用实例的路径启动游戏。[原神与绝区零首次配置](hoyo-upstream.md) · [绝区零任务配置](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/frontend/src/views/EditView/User/ZzzOdUserEdit.vue#L575-L605)
+
+## 3. 在 AUTO-MAS 一键运行
+
+1. 打开「调度队列」，点「新建队列」，命名为 `七款游戏日常`。队列类型选「定时队列」。只想手动启动时，「启动时运行」选「从不」，「定时运行」选「否」，「任务完成后」选「无动作」。
+2. 点「添加任务」并逐个选择七个托管。可拖动调整顺序。每行的「运行周几」决定整个托管在哪些天运行，包含日常的托管可以勾选全周。
+3. 打开「调度中心」，在「选择任务项」下拉框选刚才的队列，确认「本次运行范围」包含要跑的账号，然后点「开始执行」。AUTO-MAS 按顺序执行，并在日志和历史记录展示结果。首次可在每个游戏关闭后测试对应托管能否自动打开游戏，再运行整队列。
+
+需要每天定时执行时，把队列的「定时运行」设为「是」，在「定时列表 → 添加定时」设置执行周期和时间，并把该行设为「启用」。AUTO-MAS 需保持运行，桌面类任务需要可用的 Windows 桌面。[AUTO-MAS 队列说明](https://doc.auto-mas.top/docs/task-scheduler.html) · [调度中心启动按钮](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/frontend/src/views/scheduler/SchedulerTaskControl.vue#L140-L164)
+
+## 可选的 Hub 命令行调度
+
+如果要用 PowerShell 启动任务，Hub 仍提供命令行入口。使用这个入口时，让 AUTO-MAS 中的队列保持手动并停止其他正在运行的队列，避免两个调度同时操作客户端。工具装在自定义目录时，在 Hub 子命令上加 `--tools-root <原安装目录>`。
 
 先用 `plan` 查看 Hub 识别到了哪些托管和设备，再检查和运行。保持 AUTO-MAS 打开。可以先显式指定一款游戏试跑。
 

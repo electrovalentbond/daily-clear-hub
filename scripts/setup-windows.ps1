@@ -3,7 +3,7 @@
 param(
     [ValidateNotNullOrEmpty()]
     [ValidateSet('honkai3', 'starrail', 'zzz', 'genshin', 'pcr', 'bhxy2', 'endfield')]
-    [string[]]$Games = @('honkai3', 'starrail', 'zzz', 'genshin', 'bhxy2', 'endfield'),
+    [string[]]$Games = @('honkai3', 'starrail', 'zzz', 'genshin', 'pcr', 'bhxy2', 'endfield'),
     [ValidateNotNullOrEmpty()]
     [string]$ToolsRoot = (Join-Path $env:USERPROFILE 'Games\DailyAutomation')
 )
@@ -217,8 +217,19 @@ function Prepare-Pcr {
     Invoke-CheckedNative $Python @(
         '-m', 'pip', 'install', '--disable-pip-version-check', '-r', (Join-Path $Project 'requirements.txt')
     )
+
+    $AdapterSource = Join-Path $HubRoot 'integrations\pcr-automas'
+    $Adapter = Join-Path $ToolsRoot 'pcr-automas'
+    [IO.Directory]::CreateDirectory($Adapter) | Out-Null
+    foreach ($Item in @('agent.py', 'requirements.txt', 'interface.json', 'resource')) {
+        Copy-Item -LiteralPath (Join-Path $AdapterSource $Item) -Destination $Adapter -Recurse -Force
+    }
+    $AdapterConfig = @{ hub_root = $HubRoot; pcr_root = $Project } | ConvertTo-Json
+    [IO.File]::WriteAllText((Join-Path $Adapter 'local.json'), $AdapterConfig, [Text.UTF8Encoding]::new($false))
+
     Write-Host "pcr project: $Project"
     Write-Host "pcr Python: $Python"
+    Write-Host "pcr AUTO-MAS project: $Adapter"
 }
 
 [IO.Directory]::CreateDirectory($ToolsRoot) | Out-Null
@@ -232,10 +243,8 @@ try {
     Invoke-CheckedNative $HubPython @('-m', 'pip', 'install', '--disable-pip-version-check', 'PyYAML==6.0.3')
     Write-Host "Hub Python: $HubPython"
 
-    if ($Games | Where-Object { $_ -ne 'pcr' }) {
-        $MasExe = Install-ZipRelease $Releases.automas
-        Write-Host "AUTO-MAS: $MasExe"
-    }
+    $MasExe = Install-ZipRelease $Releases.automas
+    Write-Host "AUTO-MAS: $MasExe"
     foreach ($Game in $Games) {
         switch ($Game) {
             'genshin' { Install-BetterGI }

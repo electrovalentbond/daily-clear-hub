@@ -2,7 +2,7 @@
 
 Daily Clear Hub 可以直接运行 [pcr-script](https://github.com/Gibberer/pcr-script/tree/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3)。上游已有识别素材，使用 Windows x64 和 Python 3.12。以下步骤使用雷电模拟器中已经登录的哔哩哔哩国服客户端（包名 `com.bilibili.priconne`）。把上游脚本与 Hub 装在各自的虚拟环境中。首次运行需联网下载国服静态游戏数据。[上游数据加载实现](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/masterdata.py#L184)
 
-## 自动设置
+## 加入 AUTO-MAS 队列
 
 在 Hub 仓库根目录运行以下命令。安装脚本下载指定提交的源码 ZIP 并核对 SHA-256，解压到 `%USERPROFILE%\Games\DailyAutomation\pcr-script` 下的版本目录。已安装的相同提交 Git 工作区也可复用。[GitHub 源码 ZIP 说明](https://docs.github.com/en/repositories/working-with-files/using-files/downloading-source-code-archives)
 
@@ -10,7 +10,17 @@ Daily Clear Hub 可以直接运行 [pcr-script](https://github.com/Gibberer/pcr-
 & .\scripts\setup-windows.ps1 -Games pcr
 ```
 
-使用 16:9 横屏并开启 ADB，打开公主连结 B 服并登录。上游基准为 **960×540**，匹配器会按画面缩放。复用 MaaBH2 的 1280×720 模拟器时，可先保持原尺寸完成单款联调。检查游戏内保存的「日程表」及其中设置的扫荡和资源用量。Hub 会查找已授权且安装了 B 服的唯一 ADB 设备，执行日程表、任务领奖和非体力礼物领取。自动流程关闭装备分解，并在运行时生成临时任务配置。[上游模板缩放代码](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/templates.py#L78-L108)
+1. 使用 16:9 横屏并开启 ADB，在目标模拟器登录一次公主连结 B 服。上游基准为 **960×540**，匹配器会按画面缩放。复用 MaaBH2 的 1280×720 模拟器时，可先保持原尺寸完成单款联调。[上游模板缩放代码](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/templates.py#L78-L108)
+2. 在 AUTO-MAS「托管管理」新建「MFW脚本」，导入 `pcr AUTO-MAS project:` 后的目录。控制器选「安卓模拟器」，资源选「哔哩哔哩国服」，绑定模拟器实例。「游戏包名」留空即可，AUTO-MAS 启动模拟器后，pcr-script 会在该实例打开 B 服客户端。
+3. 添加并启用一个账号，在「任务队列」添加「公主连结日常」，展开「日常事项」勾选游戏内日程表、任务领奖和非体力礼物。日程表按游戏内保存的安排运行，装备自动分解关闭。准备好后，把这个托管加入 [AUTO-MAS 调度队列](windows.md#3-在-auto-mas-一键运行)。
+
+运行时使用 AUTO-MAS 当前绑定实例的 ADB 路径和序列号。上游会逐项核验结果，可在 AUTO-MAS 查看状态，在 pcr-script 目录的 `cache/daily/runs/` 查看详细报告。此托管提供三项日常，周常只运行游戏日程表本身已经包含的项目。
+
+如果移动了 Hub 仓库或上游脚本目录，重新运行安装命令，然后在此托管启用「跟随来源目录」并点「立即同步」，使 AUTO-MAS 使用更新后的安装路径。[AUTO-MAS 来源同步说明](https://doc.auto-mas.top/docs/script-guide/maafw.html)
+
+## 可选的命令行调度
+
+Hub 命令行使用已授权且安装了 B 服的唯一在线设备，按默认组合执行三项日常。
 
 ```powershell
 & .\.venv\Scripts\python.exe .\main.py plan --automas pcr
