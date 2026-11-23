@@ -120,24 +120,26 @@ function Find-ReleaseEntry([string]$Root, [string]$Filename) {
 
 function Install-ZipRelease([hashtable]$Release) {
     $Destination = Join-Path $ToolsRoot $Release.Folder
-    if (Test-Path -LiteralPath $Destination) {
+    $Pending = Join-Path $Downloads "$($Release.Folder).extracting"
+    $Resuming = Test-Path -LiteralPath $Pending -PathType Leaf
+    if ((Test-Path -LiteralPath $Destination) -and -not $Resuming) {
         return (Find-ReleaseEntry $Destination $Release.Entry)
     }
 
-    $Staging = Join-Path $ToolsRoot ('.setup-' + [guid]::NewGuid().ToString('N'))
     $Zip = Join-Path $Downloads ([IO.Path]::GetFileName($Release.Url))
-    [IO.Directory]::CreateDirectory($Staging) | Out-Null
+    Receive-Asset $Release.Url $Zip $Release.Sha256
+    # Record incomplete extraction before creating the destination so reruns can repair it.
+    [IO.File]::WriteAllText($Pending, $Release.Sha256)
+    Write-Host "Extracting $Zip to $Destination"
     try {
-        $Payload = Join-Path $Staging 'payload'
-        Receive-Asset $Release.Url $Zip $Release.Sha256
-        Expand-Archive -LiteralPath $Zip -DestinationPath $Payload
-        Find-ReleaseEntry $Payload $Release.Entry | Out-Null
-        [IO.Directory]::Move($Payload, $Destination)
-        Remove-Item -LiteralPath $Zip -ErrorAction SilentlyContinue
-    } finally {
-        Remove-Item -LiteralPath $Staging -Recurse -Force -ErrorAction SilentlyContinue
+        Expand-Archive -LiteralPath $Zip -DestinationPath $Destination -Force:$Resuming -ErrorAction Stop
+        $Entry = Find-ReleaseEntry $Destination $Release.Entry
+    } catch {
+        throw "Could not finish extracting $Zip to ${Destination}: $($_.Exception.Message) Rerun setup to reuse this ZIP."
     }
-    return (Find-ReleaseEntry $Destination $Release.Entry)
+    Remove-Item -LiteralPath $Pending
+    Remove-Item -LiteralPath $Zip -ErrorAction SilentlyContinue
+    return $Entry
 }
 
 $Releases = @{
