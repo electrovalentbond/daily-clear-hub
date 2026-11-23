@@ -43,7 +43,9 @@ class TestPCRBackend(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "缺少 images/btn_ok.png"):
             check_pcr(self.game)
 
-    def runner(self, status="complete", task_status="complete", *, verified=True, code=0, omit_json=False):
+    def runner(
+        self, status="complete", task_status="complete", *, verified=True, code=0, omit_json=False, reasons=None,
+    ):
         def run_command(command, cwd, timeout, *, stdout):
             self.assertEqual([
                 str(self.python), "-X", "utf8", "-u", "daily_task.py", "--config", str(self.config),
@@ -52,7 +54,7 @@ class TestPCRBackend(unittest.TestCase):
             self.assertEqual(120, timeout)
             report = {
                 "status": status, "verified": verified, "counts": {task_status: 1},
-                "tasks": [{"task": "schedule", "index": 1, "status": task_status}],
+                "tasks": [{"task": "schedule", "index": 1, "status": task_status, "reasons": reasons}],
             }
             stdout.write("进入游戏首页\r\n".encode("utf-8"))
             if not omit_json:
@@ -84,3 +86,13 @@ class TestPCRBackend(unittest.TestCase):
 
         with self.assertRaises(subprocess.TimeoutExpired):
             run_pcr(self.game, run_command)
+
+    def test_failed_task_shows_upstream_reason(self):
+        with redirect_stdout(io.StringIO()) as output, self.assertRaises(ValueError):
+            run_pcr(self.game, self.runner("partial", "blocked", verified=False, reasons=["找不到日程表入口"]))
+        self.assertIn("schedule 失败原因：找不到日程表入口", output.getvalue())
+
+    def test_missing_report_shows_last_upstream_output(self):
+        with redirect_stdout(io.StringIO()) as output, self.assertRaisesRegex(ValueError, "未返回最终 JSON"):
+            run_pcr(self.game, self.runner(omit_json=True))
+        self.assertIn("pcr-script 输出：进入游戏首页", output.getvalue())

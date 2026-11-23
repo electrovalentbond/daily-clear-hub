@@ -101,6 +101,9 @@ def _run_cli(game: GameConfig, run_command: Callable[..., int], config_path: Pat
     except json.JSONDecodeError:
         report = None
     if not isinstance(report, dict):
+        lines = [line for line in stdout.splitlines() if line.strip()]
+        for line in lines[-8:]:
+            print(f"pcr-script 输出：{line[:400]}", flush=True)
         raise ValueError(f"pcr-script 未返回最终 JSON 报告（退出码 {code}）；请查看上游 cache/daily/runs")
 
     tasks = report.get("tasks")
@@ -114,6 +117,11 @@ def _run_cli(game: GameConfig, run_command: Callable[..., int], config_path: Pat
         raise ValueError(f"pcr-script 没有可核实的任务结果（退出码 {code}）；请查看上游 cache/daily/runs")
     for task in tasks:
         print(f"  {task['task']}  {task['status']}", flush=True)
+        reasons = task.get("reasons")
+        if task["status"] not in VERIFIED_TASK_STATUSES and isinstance(reasons, list):
+            for reason in reasons:
+                if isinstance(reason, str) and reason.strip():
+                    print(f"  {task['task']} 失败原因：{reason.strip()[:400]}", flush=True)
     if code or report.get("status") != "complete" or report.get("verified") is not True or any(
         task["status"] not in VERIFIED_TASK_STATUSES for task in tasks
     ):
