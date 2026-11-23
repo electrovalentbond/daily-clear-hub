@@ -142,6 +142,7 @@ function Install-ZipRelease([hashtable]$Release) {
     return $Entry
 }
 
+$PcrRevision = 'd1eb2120599a5bc42ce934657f7788e1a8f0bfc3'
 $Releases = @{
     automas = @{
         Folder = 'AUTO-MAS-v5.8.0'
@@ -166,6 +167,12 @@ $Releases = @{
         Entry = 'OneDragon-RuntimeLauncher.exe'
         Url = 'https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/releases/download/v2.6.1/ZenlessZoneZero-OneDragon-v2.6.1-WithRuntime-Full.zip'
         Sha256 = 'c83607cf8966db4b440e1e1d4f38fad47099b1977cf41f7381ba85857779ce57'
+    }
+    pcr = @{
+        Folder = 'pcr-script'
+        Entry = 'daily_task.py'
+        Url = "https://github.com/Gibberer/pcr-script/archive/$PcrRevision.zip"
+        Sha256 = '12847c8dc80f99a3038d15cd1bc87e600f07c1454f9c28a4f2761774c3a18c16'
     }
     bhxy2 = @{
         Folder = 'MaaBH2-v0.3.6'
@@ -196,25 +203,14 @@ function Install-BetterGI {
 }
 
 function Prepare-Pcr {
-    $Project = Join-Path $ToolsRoot 'pcr-script'
-    $Revision = 'd1eb2120599a5bc42ce934657f7788e1a8f0bfc3'
-    if (Test-Path -LiteralPath $Project) {
-        if (-not (Test-Path -LiteralPath (Join-Path $Project '.git'))) {
-            throw "Expected a pcr-script Git checkout at $Project."
-        }
+    $Project = Join-Path $ToolsRoot $Releases.pcr.Folder
+    if (Test-Path -LiteralPath (Join-Path $Project '.git')) {
         $Head = Invoke-CheckedNative 'git.exe' @('-C', $Project, 'rev-parse', 'HEAD')
-        if ($Head -ne $Revision) {
-            throw "Preserved existing pcr-script checkout at $Project. Choose another -ToolsRoot for revision $Revision."
+        if ($Head -ne $PcrRevision) {
+            throw "Preserved existing pcr-script checkout at $Project. Choose another -ToolsRoot for revision $PcrRevision."
         }
     } else {
-        $Staging = Join-Path $ToolsRoot ('.setup-' + [guid]::NewGuid().ToString('N'))
-        try {
-            Invoke-CheckedNative 'git.exe' @('clone', '--no-checkout', 'https://github.com/Gibberer/pcr-script.git', $Staging)
-            Invoke-CheckedNative 'git.exe' @('-C', $Staging, 'checkout', '--detach', $Revision)
-            [IO.Directory]::Move($Staging, $Project)
-        } finally {
-            Remove-Item -LiteralPath $Staging -Recurse -Force -ErrorAction SilentlyContinue
-        }
+        $Project = Split-Path -Parent (Install-ZipRelease $Releases.pcr)
     }
 
     $Python = Get-ProjectPython $Project

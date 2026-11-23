@@ -10,6 +10,7 @@ from core.config_loader import GameConfig
 
 
 PCR_PACKAGE = "com.bilibili.priconne"
+PCR_SOURCE_REVISION = "d1eb2120599a5bc42ce934657f7788e1a8f0bfc3"
 _MANUAL_FIELDS = {"project_dir", "executable", "pcr_config"}
 
 
@@ -59,6 +60,8 @@ def discover_pcr(game: GameConfig, tools_root: Path) -> GameConfig | None:
         return game
 
     project = (tools_root / "pcr-script").resolve()
+    if not (project / "daily_task.py").is_file():
+        project = project / f"pcr-script-{PCR_SOURCE_REVISION}"
     python = project / ".venv" / "Scripts" / "python.exe"
     if not python.is_file() or not (project / "daily_task.py").is_file():
         return None

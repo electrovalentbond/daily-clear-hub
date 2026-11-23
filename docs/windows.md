@@ -41,7 +41,7 @@ $env:HTTPS_PROXY = 'http://127.0.0.1:7890'
 & .\scripts\setup-windows.ps1 -Games honkai3,starrail,zzz,genshin,pcr,bhxy2,endfield
 ```
 
-遇到 `curl 56` 等连接中断时，脚本会自动重试。若仍中断，保留工具目录 `Downloads` 里的 `.part` 文件并重跑同一条命令。支持续传的服务器会从已有字节继续。完整文件通过 SHA-256 校验后才会解压或交给安装器。解压失败后也可直接重跑，脚本会复用 `Downloads` 中已校验的 ZIP。
+遇到 `curl 56` 等连接中断时，脚本会自动重试。若仍中断，保留工具目录 `Downloads` 里的 `.part` 文件并重跑同一条命令。支持续传的服务器会从已有字节继续。安装包和公主连结的源码 ZIP 通过 SHA-256 校验后才会解压或交给安装器。解压失败后也可直接重跑，脚本会复用 `Downloads` 中已校验的 ZIP。
 
 工具默认放在 `$env:USERPROFILE\Games\DailyAutomation`。若用户名含中文或安装路径需要简化，可指定同一个新目录。自动识别公主连结时，把该目录一并传给 Hub。
 

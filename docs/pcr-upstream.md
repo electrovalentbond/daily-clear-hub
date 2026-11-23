@@ -4,7 +4,7 @@ Daily Clear Hub 可以直接运行 [pcr-script](https://github.com/Gibberer/pcr-
 
 ## 自动设置
 
-在 Hub 仓库根目录运行以下命令。安装脚本按默认路径把公主连结上游放在 `%USERPROFILE%\Games\DailyAutomation\pcr-script`。
+在 Hub 仓库根目录运行以下命令。安装脚本下载指定提交的源码 ZIP 并核对 SHA-256，解压到 `%USERPROFILE%\Games\DailyAutomation\pcr-script` 下的版本目录。已安装的相同提交 Git 工作区也可复用。[GitHub 源码 ZIP 说明](https://docs.github.com/en/repositories/working-with-files/using-files/downloading-source-code-archives)
 
 ```powershell
 & .\scripts\setup-windows.ps1 -Games pcr

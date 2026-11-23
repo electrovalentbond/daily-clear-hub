@@ -8,7 +8,7 @@ import yaml
 
 from core.config_loader import GameConfig
 from core.pcr_backend import check_pcr, run_pcr
-from core.pcr_setup import PCR_PACKAGE, discover_pcr
+from core.pcr_setup import PCR_PACKAGE, PCR_SOURCE_REVISION, discover_pcr
 
 
 class TestPcrDiscovery(unittest.TestCase):
@@ -18,8 +18,10 @@ class TestPcrDiscovery(unittest.TestCase):
         self.tools = Path(self.directory.name)
         self.game = GameConfig("公主连结", False, "native", 300, {})
 
-    def install_fixture(self):
+    def install_fixture(self, *, archive=False):
         project = self.tools / "pcr-script"
+        if archive:
+            project = project / f"pcr-script-{PCR_SOURCE_REVISION}"
         for relative in (
             ".venv/Scripts/python.exe",
             "daily_task.py",
@@ -80,6 +82,17 @@ class TestPcrDiscovery(unittest.TestCase):
         run_pcr(resolved, record_process)
         self.assertFalse(self.generated_config.exists())
         self.assertFalse((project / "daily_config.yml").exists())
+
+    @patch("core.pcr_setup._adb_output")
+    def test_discovers_project_installed_from_source_archive(self, adb_output):
+        project, _ = self.install_fixture(archive=True)
+        adb_output.side_effect = ["device-a\tdevice\n", "package:/data/app/com.bilibili.priconne/base.apk\n"]
+
+        resolved = discover_pcr(self.game, self.tools)
+
+        self.assertIsNotNone(resolved)
+        self.assertEqual(project.resolve(), resolved.path("project_dir"))
+        check_pcr(resolved)
 
     @patch("core.pcr_setup._adb_output")
     def test_ambiguous_target_fails_and_named_serial_disambiguates(self, adb_output):
