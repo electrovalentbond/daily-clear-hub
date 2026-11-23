@@ -4,12 +4,19 @@
 
 ## 1. 一次准备所选游戏
 
-使用 Windows 10/11 x64 和 PowerShell。游戏客户端先安装并登录。Windows 缺少 Git、Python 3.12 或 VC++ 运行库时，执行对应命令，安装完成后重新打开 PowerShell。[WinGet 安装说明](https://learn.microsoft.com/zh-cn/windows/package-manager/winget/)
+使用 Windows 10/11 x64 和 PowerShell。游戏客户端先安装并登录。Windows 缺少 Git 或 Python 3.12 时，执行对应命令，安装完成后重新打开 PowerShell。[WinGet 安装说明](https://learn.microsoft.com/zh-cn/windows/package-manager/winget/)
 
 ```powershell
 winget install --exact --id Git.Git --source winget --accept-package-agreements --accept-source-agreements
 winget install --exact --id Python.Python.3.12 --source winget --architecture x64 --accept-package-agreements --accept-source-agreements
-winget install --exact --id 'Microsoft.VCRedist.2015+.x64' --source winget --accept-package-agreements --accept-source-agreements
+```
+
+Visual C++ x64 运行库直接从微软下载。打开安装界面后按提示完成。如果安装器显示已装有相同或更新版本，可以继续下一步。[微软运行库下载说明](https://learn.microsoft.com/zh-cn/cpp/windows/latest-supported-vc-redist)
+
+```powershell
+$VcRuntime = Join-Path $env:TEMP 'vc_redist.x64.exe'
+Invoke-WebRequest -UseBasicParsing -Uri 'https://aka.ms/vc14/vc_redist.x64.exe' -OutFile $VcRuntime -ErrorAction Stop
+Start-Process -FilePath $VcRuntime -Wait
 ```
 
 首次克隆，或更新已有仓库。从仓库根目录运行批量安装脚本。
