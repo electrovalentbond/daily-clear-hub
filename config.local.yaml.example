@@ -1,10 +1,33 @@
-# 复制为 config.local.yaml 并填写本机路径（不要提交到 Git）
-windows:
-  honkai3_exe: "D:/Games/bh3/launcher.exe"
-  starrail_exe: "D:/Games/Star Rail/Game/StarRail.exe"
-  zzz_exe: "D:/Games/ZenlessZoneZero Game/ZenlessZoneZero.exe"
-  genshin_exe: "D:/Games/Genshin Impact/Genshin Impact Game/YuanShen.exe"
-
-emulator:
-  ldplayer_root: "C:/leidian/LDPlayer9"
-  adb: "C:/leidian/LDPlayer9/adb.exe"
+# 复制为 config.local.yaml。相对路径以仓库根目录为基准。
+# 通过 main.py plan 查看可用步骤 ID。steps 会替换该游戏的默认步骤列表。
+games:
+  honkai3:
+    enabled: false
+    exe: BH3.exe
+    steps: [bh3_claim_daily, bh3_claim_mail]
+  starrail:
+    enabled: false
+    # 内置后端请保留 backend: native；用 March7thAssistant 时启用以下三项。
+    # backend: march7th
+    # executable: "D:/Tools/March7thAssistant/m7a.exe"
+    # timeout_sec: 1800
+  zzz:
+    enabled: false
+  genshin:
+    enabled: false
+  pcr:
+    enabled: false
+    adb_serial: "127.0.0.1:5555"  # 用 adb devices 的实际序列号替换。
+  bhxy2:
+    enabled: false
+    adb_serial: "127.0.0.1:5555"
+    package: ""  # 用 adb shell pm list packages 查找当前区服的包名。
+    # 使用 HKA 时，启用以下设置，ADB 序列号和包名改由 HKA 的 config.json 提供。
+    # backend: hka
+    # executable: "D:/Tools/Honkai2Automation/.venv/Scripts/python.exe"
+    # project_dir: "D:/Tools/Honkai2Automation"
+    # hka_config: "D:/Tools/Honkai2Automation/config.json"
+    # timeout_sec: 1800
+  endfield:
+    enabled: false
+    # 可在实机校准之后将 ef_simulation 和 ef_handbook 加入 steps。

@@ -1,8 +1,6 @@
-import ok
-from src.config import config
+import sys
 
-if __name__ == '__main__':
-    config = config
-    config['debug'] = True
-    ok = ok.OK(config)
-    ok.start()
+from main import main
+
+if __name__ == "__main__":
+    sys.exit(main(["gui", "--debug", *sys.argv[1:]]))

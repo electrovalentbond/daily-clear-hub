@@ -1,50 +1,75 @@
-schedule_order:
-  - honkai3
-  - starrail
-  - zzz
-  - genshin
-  - pcr
-  - bhxy2
-
-scheduler:
-  task_timeout_sec: 1800
-  max_retries: 2
-  retry_delay_sec: 10
+schedule_order: [honkai3, starrail, zzz, genshin, pcr, bhxy2, endfield]
 
 games:
   honkai3:
-    enabled: true
+    name: 崩坏3
+    enabled: false
+    backend: native
     platform: windows
-    tasks:
-      - daily
+    exe: BH3.exe
+    resolution: [1920, 1080]
+    templates: assets/local/honkai3/coco_annotations.json
+    timeout_sec: 300
+    steps: [bh3_claim_daily, bh3_claim_mail]
   starrail:
-    enabled: true
+    name: 崩坏：星穹铁道
+    enabled: false
+    backend: native
     platform: windows
-    tasks:
-      - daily
+    exe: StarRail.exe
+    resolution: [1920, 1080]
+    templates: assets/local/starrail/coco_annotations.json
+    timeout_sec: 300
+    steps: [sr_claim_mail]
   zzz:
-    enabled: true
+    name: 绝区零
+    enabled: false
+    backend: native
     platform: windows
-    tasks:
-      - daily
+    exe: ZenlessZoneZero.exe
+    resolution: [1920, 1080]
+    templates: assets/local/zzz/coco_annotations.json
+    timeout_sec: 300
+    steps: [zzz_claim_mail]
   genshin:
-    enabled: true
+    name: 原神
+    enabled: false
+    backend: native
     platform: windows
-    tasks:
-      - daily
+    exe: YuanShen.exe
+    resolution: [1920, 1080]
+    templates: assets/local/genshin/coco_annotations.json
+    timeout_sec: 300
+    steps: [gi_mail, gi_commissions]
   pcr:
-    enabled: true
+    name: 公主连结
+    enabled: false
+    backend: native
     platform: adb
-    emulator_index: 0
     package: com.bilibili.priconne
-    resolution: "540,960,240"
-    tasks:
-      - daily
+    adb_serial: ""
+    resolution: [1280, 720]
+    templates: assets/local/pcr/coco_annotations.json
+    timeout_sec: 300
+    steps: [pcr_collect_gifts, pcr_collect_quests]
   bhxy2:
-    enabled: true
+    name: 崩坏学园2
+    enabled: false
+    backend: native
     platform: adb
-    emulator_index: 0
-    # 包名需在 Windows 上用 adb shell pm list packages 确认后填写
     package: ""
-    tasks:
-      - daily
+    adb_serial: ""
+    resolution: [1280, 720]
+    templates: assets/local/bhxy2/coco_annotations.json
+    timeout_sec: 300
+    steps: [bh2_mail, bh2_presence]
+  endfield:
+    name: 明日方舟：终末地
+    enabled: false
+    backend: native
+    platform: windows
+    exe: Endfield.exe
+    resolution: [1920, 1080]
+    templates: assets/local/endfield/coco_annotations.json
+    timeout_sec: 420
+    steps: [ef_mail, ef_storage, ef_daily, ef_pass]

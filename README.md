@@ -1,126 +1,29 @@
 # Daily Clear Hub
 
-多游戏日常统一自动化：基于 [ok-script](https://github.com/ok-oldking/ok-script)，PC 端 Win32 + 模拟器 ADB 一套代码。
+在 Windows 上按一份配置运行七款游戏的日常。内置流程使用 [ok-script](https://github.com/ok-oldking/ok-script) 识别画面和发送输入，并报告已领完、确认无奖励或失败。星铁可选三月七小助手，崩坏学园 2 可选 HKA，由 Hub 等待并检查各自的运行结果。
 
-仓库：https://github.com/electrovalentbond/daily-clear-hub
+- [Windows 安装与运行手册](docs/windows.md)
+- [七款游戏的实现评估与源码依据](docs/implementation-review.md)
+- [内置流程的模板采集说明](assets/README.md)
 
-## 开发环境
+## 入口
 
-| 环境 | 用途 |
-|------|------|
-| **macOS** | 写 Python 逻辑、跑 `run_tests.sh` 截图无关单测 |
-| **Windows** | 真游戏/雷电联调、`main_debug.py`、PyAppify 打包 |
+在仓库根目录按 Windows 手册创建 `.venv`，复制 `config.local.yaml.example` 为 `config.local.yaml` 并设置运行目标。
 
-> ok-script 运行时依赖 Win32，**无法在 macOS 上控制游戏**。完整 E2E 请在 Windows（实体机或 Parallels）验证。
+```powershell
+& .\.venv\Scripts\python.exe .\main.py plan
+& .\.venv\Scripts\python.exe .\main.py check
+& .\.venv\Scripts\python.exe .\main.py run
+```
 
-## 快速开始
+`plan` 列出全部游戏和步骤。 `check` 检查配置和素材，`run` 按 `schedule_order` 运行已启用的游戏。可在命令后传入一个或多个游戏 ID 单独联调，例如 `run endfield`。`gui endfield --debug` 打开单游戏的 ok-script 截图诊断工具。
 
-### macOS（逻辑开发）
+仓库默认关闭所有游戏。内置路线用于免费奖励领取，需要按你的游戏版本和语言采集 COCO 截图模板，再在 Windows 验证起点、领奖、领完和返回。星铁和崩坏学园 2 的外部后端使用各自的配置与识别资源。两种模式都可加入同一队列。
+
+## 开发验证
 
 ```bash
-git clone https://github.com/electrovalentbond/daily-clear-hub.git
-cd daily-clear-hub
-python3 -m venv .venv && source .venv/bin/activate
-pip install pyyaml
+python3 -m venv .venv
+.venv/bin/python -m pip install pyyaml
 ./run_tests.sh
 ```
-
-完整依赖（含 ok-script）需在 **Windows + Python 3.12** 安装。
-
-### Windows（联调 / 运行）
-
-**前置：** Python 3.12、Git、雷电模拟器 9（公主连结）、已安装的 PC 游戏（崩坏3 等）。
-
-```powershell
-git clone https://github.com/electrovalentbond/daily-clear-hub.git
-cd daily-clear-hub
-py -3.12 -m venv venv
-.\venv\Scripts\activate
-pip install -r requirements.txt
-copy config.local.yaml.example config.local.yaml
-notepad config.local.yaml
-```
-
-`config.local.yaml` 示例：
-
-```yaml
-windows:
-  honkai3_exe: "D:/Games/bh3/launcher.exe"
-emulator:
-  ldplayer_root: "C:/leidian/LDPlayer9"
-  adb: "C:/leidian/LDPlayer9/adb.exe"
-```
-
-**必须**右键「以管理员身份运行」终端或 IDE，然后：
-
-```powershell
-python main_debug.py
-```
-
-Phase 0 验证清单：
-
-1. GUI 里「截图测试」成功
-2. 「诊断任务」可运行
-3. 雷电开启 USB 调试后 `adb devices` 有设备
-4. 任务列表可见：崩坏3 日常 / 公主连结 日常 / 一键清日常
-
-日常更新：
-
-```powershell
-git pull
-pip install -r requirements.txt
-python main_debug.py
-```
-
-## 配置
-
-- `config.yaml`：任务开关、调度顺序（提交 Git）
-- `config.local.yaml`：本机 Windows 路径（复制 example，**不提交**）
-- `accounts.yaml`：多账号（可选，复制 `accounts.yaml.example`）
-
-各游戏步骤开关在 ok-script GUI 对应任务内勾选（如「材料远征」「收取礼物」）。
-
-## 项目结构
-
-```
-core/           调度器、配置加载、雷电封装
-games/          各游戏 Plugin 与 Task（steps / features）
-src/            ok-script 应用配置与入口 Task
-assets/         模板图（Windows 联调后补充，见 features.py）
-config.yaml     全局调度配置
-tests/          macOS 可跑的单元测试
-```
-
-## mac ↔ Windows 协作
-
-| 环境 | 做什么 |
-|------|--------|
-| macOS | 写逻辑 → `./run_tests.sh` → `git push` |
-| Windows | `git pull` → 真机联调 → 补 `assets/` → `git push` |
-
-模板特征名见：
-
-- `games/honkai3/features.py`
-- `games/pcr/features.py`
-
-公主连结建议分辨率：**540×960 DPI 240**；崩坏3 PC：**1920×1080** 16:9。
-
-## Windows 交付
-
-- 开发期：`git pull` + `python main.py`
-- 产品化：配置 `pyappify.yml`，打 `v*` tag 由 GitHub Actions 构建 `setup.exe`
-
-## 当前进度
-
-- [x] ok-script 模板 + `core/` 调度器骨架
-- [x] `config.yaml` / `config.local.yaml` 分离
-- [x] 崩坏3 MVP 日常步骤（材料远征/家园/舰团/领奖）
-- [x] 星铁 MVP 日常步骤（委托/开拓力/实训/邮件）
-- [x] 绝区零 MVP 日常步骤（营业刮卡/电量/任务/邮件）
-- [x] 原神 MVP 日常步骤（委托/树脂扫荡/派遣；尘歌壶默认关）
-- [x] 公主连结 MVP 日常步骤（礼物/任务/扫荡/地下城/捐赠）
-- [x] 崩坏学园2 MVP 日常步骤（签到/冒险/商店/邮件；活动默认关）
-- [x] 代码已推送到 GitHub
-- [ ] Windows Phase 0 环境验证
-- [ ] 补充 `assets/` 模板图并真实联调
-- [ ] 截图回归测试（`TaskTestCase`）

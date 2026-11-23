@@ -69,3 +69,6 @@ working_images/
 
 config.local.yaml
 accounts.yaml
+
+# 本机截图与 COCO 标注
+/assets/local/

@@ -1,31 +1,19 @@
-from __future__ import annotations
+from games import rewards
+from games.zzz import features
 
-from games.flow import DailyFlow, DailyStep
-from games.zzz import steps
-
-STEP_ENSURE_LOBBY = "zzz_ensure_lobby"
-STEP_BUSINESS = "zzz_business"
-STEP_SPEND_BATTERY = "zzz_spend_battery"
-STEP_DAILY_MISSIONS = "zzz_daily_missions"
-STEP_CLAIM_MAIL = "zzz_claim_mail"
-
-DEFAULT_STEP_TOGGLES: dict[str, bool] = {
-    STEP_ENSURE_LOBBY: True,
-    STEP_BUSINESS: True,
-    STEP_SPEND_BATTERY: True,
-    STEP_DAILY_MISSIONS: True,
-    STEP_CLAIM_MAIL: True,
-}
-
-ZZZ_DAILY_FLOW = DailyFlow(
+# 路线参考绝区零一条龙的邮件应用。以预先打开的菜单为起点，使用实机模板。
+DAILY_FLOW = rewards.RewardFlow(
     game_id="zzz",
-    steps=[
-        DailyStep(STEP_ENSURE_LOBBY, "回到大厅", steps.step_ensure_lobby),
-        DailyStep(STEP_BUSINESS, "营业刮卡", steps.step_business_scratch),
-        DailyStep(STEP_SPEND_BATTERY, "消耗电量", steps.step_spend_battery),
-        DailyStep(STEP_DAILY_MISSIONS, "每日任务领奖", steps.step_claim_daily_missions),
-        DailyStep(STEP_CLAIM_MAIL, "邮件领取", steps.step_claim_mail),
-    ],
+    home=features.HOME,
+    back=features.BACK,
+    popup=features.REWARD_POPUP,
+    pages=(
+        rewards.RewardPage(
+            step_id="zzz_claim_mail",
+            name="邮件附件领取",
+            route=((features.MAIL_ENTRY, features.MAIL_PAGE),),
+            claim=features.MAIL_CLAIM,
+            empty=features.MAIL_EMPTY,
+        ),
+    ),
 )
-
-STEP_LABELS: dict[str, str] = {step.step_id: step.name for step in ZZZ_DAILY_FLOW.steps}

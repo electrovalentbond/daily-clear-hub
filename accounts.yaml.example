@@ -1,6 +1,0 @@
-accounts:
-  - name: default
-    games:
-      honkai3: {}
-      pcr:
-        emulator_index: 0

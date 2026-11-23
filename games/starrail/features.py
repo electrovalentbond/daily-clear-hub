@@ -1,15 +1,10 @@
-"""崩坏：星穹铁道 模板特征名。"""
+"""崩坏：星穹铁道触屏布局模板。启动前打开手机菜单，再用实机截图校准。"""
 
-SR_PHONE = "sr_phone"
-SR_CLOSE_POPUP = "sr_close_popup"
-SR_TRAILBLAZE_POWER = "sr_trailblaze_power"
-SR_CALYX_ENTRY = "sr_calyx_entry"
-SR_SWEEP_BUTTON = "sr_sweep_button"
-SR_ASSIGNMENT_ENTRY = "sr_assignment_entry"
-SR_ASSIGNMENT_CLAIM = "sr_assignment_claim"
-SR_ASSIGNMENT_DISPATCH = "sr_assignment_dispatch"
-SR_DAILY_TRAINING = "sr_daily_training"
-SR_DAILY_CLAIM = "sr_daily_claim"
-SR_MAIL_ENTRY = "sr_mail_entry"
-SR_MAIL_CLAIM = "sr_mail_claim"
-SR_OK = "sr_ok_button"
+HOME = "sr_phone_menu"  # 手机菜单中区别于大世界和邮件页的专有标记。
+BACK = "sr_back"  # 触屏布局邮件页右上角的返回按钮。
+REWARD_POPUP = "sr_reward_popup_close"  # 邮件物品到账弹窗的关闭目标。
+
+MAIL_ENTRY = "sr_mail_entry"  # 手机菜单中的邮件图标。
+MAIL_PAGE = "sr_mail_page"  # 邮件页专有标题或其他固定元素。
+MAIL_CLAIM = "sr_mail_claim_all"  # 活跃状态的「全部领取」按钮，保留可区分的底色。
+MAIL_EMPTY = "sr_mail_empty"  # 邮件页已无附件可领状态，例如置灰按钮。

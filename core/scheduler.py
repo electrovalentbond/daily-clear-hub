@@ -1,118 +1,148 @@
 from __future__ import annotations
 
-import logging
-import time
-from dataclasses import dataclass, field
-from typing import Callable, Protocol
+import ctypes
+import json
+import os
+import signal
+import subprocess
+import sys
+from contextlib import contextmanager
+from dataclasses import asdict
+from pathlib import Path
+from tempfile import TemporaryDirectory
 
-from core.config_loader import HubConfig, enabled_games_in_order, load_hub_config
-from games.registry import GameRunContext, resolve_game_runner
-
-logger = logging.getLogger(__name__)
-
-
-class GameRunner(Protocol):
-    def run_tasks(self, game_id: str, task_names: list[str]) -> None:
-        ...
-
-
-@dataclass
-class RunResult:
-    game_id: str
-    task_name: str
-    success: bool
-    attempts: int
-    error: str | None = None
+from core.config_loader import PROJECT_ROOT, GameConfig, HubConfig
+from core.templates import check_templates
+from games.registry import load_flow
+from src.config import resolution_for, target_for
 
 
-@dataclass
-class SchedulerReport:
-    results: list[RunResult] = field(default_factory=list)
-
-    @property
-    def success(self) -> bool:
-        return all(result.success for result in self.results)
+def executable_for(game: GameConfig) -> Path:
+    executable = game.path("executable")
+    if executable.suffix.lower() != ".exe" or not executable.is_file():
+        raise ValueError(f"找不到 Windows 可执行文件：{executable}")
+    return executable
 
 
-class DailyScheduler:
-    def __init__(
-        self,
-        hub_config: HubConfig | None = None,
-        runner: GameRunner | None = None,
-        log: logging.Logger | None = None,
-    ):
-        self.hub_config = hub_config or load_hub_config()
-        self.runner = runner or LoggingGameRunner(log or logger)
-        self.log = log or logger
+def check_game(game_id: str, game: GameConfig) -> None:
+    if game.backend == "march7th":
+        if game_id != "starrail":
+            raise ValueError("march7th 后端仅支持 starrail")
+        if executable_for(game).name.casefold() != "m7a.exe":
+            raise ValueError("请将 executable 指向三月七小助手的 m7a.exe")
+        return
+    if game.backend == "hka":
+        if game_id != "bhxy2":
+            raise ValueError("hka 后端仅支持 bhxy2")
+        from core.hka_backend import check_hka
 
-    def run_all(self) -> SchedulerReport:
-        report = SchedulerReport()
-        for game_id, game in enabled_games_in_order(self.hub_config):
-            self.log.info("开始游戏日常: %s (%s)", game_id, ", ".join(game.tasks))
-            for task_name in game.tasks:
-                result = self._run_with_retry(game_id, task_name)
-                report.results.append(result)
-                if not result.success:
-                    self.log.error(
-                        "任务失败: %s/%s, error=%s",
-                        game_id,
-                        task_name,
-                        result.error,
-                    )
-        return report
+        check_hka(game)
+        return
+    flow = load_flow(game_id)
+    pages = flow.select(game.steps())
+    target_for(game)
+    resolution_for(game)
+    check_templates(game.path("templates"), flow.required_features(pages))
 
-    def _run_with_retry(self, game_id: str, task_name: str) -> RunResult:
-        scheduler = self.hub_config.scheduler
-        last_error: str | None = None
 
-        for attempt in range(1, scheduler.max_retries + 2):
-            try:
-                self.runner.run_tasks(game_id, [task_name])
-                return RunResult(
-                    game_id=game_id,
-                    task_name=task_name,
-                    success=True,
-                    attempts=attempt,
-                )
-            except Exception as exc:  # noqa: BLE001
-                last_error = str(exc)
-                self.log.warning(
-                    "任务重试 %s/%s (%s/%d): %s",
-                    game_id,
-                    task_name,
-                    attempt,
-                    scheduler.max_retries + 1,
-                    exc,
-                )
-                if attempt <= scheduler.max_retries:
-                    time.sleep(scheduler.retry_delay_sec)
+class RunAborted(RuntimeError):
+    """停止队列，因为子进程的退出状态无法确认。"""
 
-        return RunResult(
-            game_id=game_id,
-            task_name=task_name,
-            success=False,
-            attempts=scheduler.max_retries + 1,
-            error=last_error,
+
+@contextmanager
+def run_lock():
+    path = PROJECT_ROOT / "configs" / "hub.lock"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("ab") as handle:
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError as exc:
+            raise ValueError("已有 Daily Clear Hub 队列或诊断窗口在运行") from exc
+        yield
+
+
+def _stop_process(process: subprocess.Popen) -> None:
+    if os.name == "nt":
+        result = subprocess.run(
+            ["taskkill", "/PID", str(process.pid), "/T", "/F"],
+            capture_output=True,
+            timeout=15,
         )
+        if result.returncode and process.poll() is None:
+            raise RunAborted(f"无法终止任务进程 {process.pid}，队列已停止")
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired as exc:
+        raise RunAborted(f"任务进程 {process.pid} 仍在运行，队列已停止") from exc
 
 
-class LoggingGameRunner:
-    def __init__(self, log: logging.Logger | None = None):
-        self.log = log or logger
+def run_command(command: list[str], cwd: Path, timeout: int, *, stdout=None) -> int:
+    kwargs = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
+    process = subprocess.Popen(command, cwd=cwd, stdin=subprocess.DEVNULL, stdout=stdout, **kwargs)
+    try:
+        return process.wait(timeout=timeout)
+    except (subprocess.TimeoutExpired, KeyboardInterrupt):
+        try:
+            _stop_process(process)
+        except (OSError, subprocess.TimeoutExpired) as exc:
+            raise RunAborted(f"无法确认任务进程 {process.pid} 已停止，队列已停止") from exc
+        raise
 
-    def run_tasks(self, game_id: str, task_names: list[str]) -> None:
-        for task_name in task_names:
-            context = GameRunContext(game_id=game_id, task_name=task_name)
-            runner = resolve_game_runner(context)
-            if runner is None:
-                raise RuntimeError(f"未注册 runner: {game_id}/{task_name}")
-            self.log.info("执行 runner: %s", runner.describe())
-            runner.run(context)
+
+def _run_march7th(game: GameConfig) -> None:
+    if os.name != "nt" or not ctypes.windll.shell32.IsUserAnAdmin():
+        raise ValueError("三月七小助手需要从管理员 PowerShell 运行，以便 Hub 等待同一进程")
+    executable = executable_for(game)
+    command = [str(executable), "routine", "--non-interactive", "--after-finish", "None"]
+    code = run_command(command, executable.parent, game.timeout)
+    if code:
+        raise ValueError(f"三月七小助手退出码 {code}，请查看其日志")
 
 
-@dataclass
-class CallableGameRunner:
-    run_fn: Callable[[str, list[str]], None]
+def _run_native(game_id: str, game: GameConfig) -> None:
+    with TemporaryDirectory(prefix="daily-clear-") as folder:
+        request = Path(folder) / "game.json"
+        request.write_text(json.dumps(asdict(game), ensure_ascii=False), encoding="utf-8")
+        command = [sys.executable, "-u", "-m", "core.native", game_id, str(request)]
+        if run_command(command, PROJECT_ROOT, game.timeout):
+            raise ValueError("内置后端有步骤失败或未完成")
 
-    def run_tasks(self, game_id: str, task_names: list[str]) -> None:
-        self.run_fn(game_id, task_names)
+
+def run_queue(hub: HubConfig, game_ids: tuple[str, ...]) -> bool:
+    all_succeeded = True
+    for game_id in game_ids:
+        game = hub.games[game_id]
+        print(f"\n[{game_id}] {game.name} · {game.backend}", flush=True)
+        try:
+            check_game(game_id, game)
+            if game.backend == "march7th":
+                _run_march7th(game)
+            elif game.backend == "hka":
+                from core.hka_backend import run_hka
+
+                run_hka(game, run_command)
+            else:
+                _run_native(game_id, game)
+            print(f"[{game_id}] 完成", flush=True)
+        except subprocess.TimeoutExpired:
+            if game.backend != "native":
+                raise RunAborted(f"[{game_id}] 超过 {game.timeout} 秒，队列已停止。请确认上游任务结束后再运行") from None
+            print(f"[{game_id}] 超过 {game.timeout} 秒，已终止任务进程", file=sys.stderr, flush=True)
+            all_succeeded = False
+        except (ValueError, OSError) as exc:
+            print(f"[{game_id}] {exc}", file=sys.stderr, flush=True)
+            all_succeeded = False
+    return all_succeeded

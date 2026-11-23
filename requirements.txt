@@ -75,6 +75,8 @@ pywin32==311
     # via
     #   ok-script
     #   pysidesix-frameless-window
+pyyaml==6.0.3
+    # via -r requirements.in
 requests==2.34.2
     # via
     #   adbutils

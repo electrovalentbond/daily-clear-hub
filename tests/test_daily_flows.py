@@ -1,126 +1,96 @@
 import unittest
 
-from games.adapters import MockFlowContext
-from games.bhxy2.flow import BHXY2_DAILY_FLOW, STEP_CHECKIN, STEP_EVENT
-from games.flow import StepOutcome
-from games.genshin.flow import GENSHIN_DAILY_FLOW, STEP_COMMISSIONS, STEP_TEAPOT
-from games.honkai3.flow import (
-    HONKAI3_DAILY_FLOW,
-    STEP_CLAIM_MAIL,
-    STEP_MATERIAL_EXPEDITION,
-    STEP_SIM_BATTLE_REDUCE,
-)
-from games.pcr.flow import (
-    PCR_DAILY_FLOW,
-    STEP_COLLECT_GIFTS,
-    STEP_GUILD_DONATE,
-    STEP_SWEEP,
-)
-from games.starrail.flow import STARRAIL_DAILY_FLOW, STEP_DAILY_TRAINING, STEP_SPEND_POWER
-from games.zzz.flow import ZZZ_DAILY_FLOW, STEP_BUSINESS, STEP_SPEND_BATTERY
+from games.rewards import Key, Outcome, RewardFlow, RewardPage
 
 
-def _run_all(flow):
-    ctx = MockFlowContext(enabled_steps={step.step_id for step in flow.steps})
-    return flow.run(ctx), ctx
+MAIL = RewardPage("mail", "邮件", (("mail_button", "mail_page"),), "claim", "empty")
+PASS = RewardPage("pass", "通行证", ((Key("f4"), "pass_page"),), "claim", "empty")
+FLOW = RewardFlow("demo", "home", "back", "popup_close", (MAIL, PASS))
 
 
-class TestHonkai3DailyFlow(unittest.TestCase):
-    def test_runs_enabled_steps_in_order(self):
-        report, ctx = _run_all(HONKAI3_DAILY_FLOW)
-        self.assertTrue(report.success)
-        self.assertEqual(len(HONKAI3_DAILY_FLOW.steps), len(report.steps))
-        self.assertTrue(any("开始: 材料远征" in log for log in ctx.logs))
+class RewardScreen:
+    def __init__(self, rewards=1, *, stuck=False, contradictory=False, back_fails=False):
+        self.screen = "home"
+        self.rewards = rewards
+        self.stuck = stuck
+        self.contradictory = contradictory
+        self.back_fails = back_fails
+        self.actions = []
 
-    def test_disabled_steps_are_skipped(self):
-        enabled = {step.step_id for step in HONKAI3_DAILY_FLOW.steps}
-        enabled.discard(STEP_SIM_BATTLE_REDUCE)
-        enabled.discard(STEP_CLAIM_MAIL)
-        report = HONKAI3_DAILY_FLOW.run(MockFlowContext(enabled_steps=enabled))
-        outcomes = {step.step_id: step.outcome for step in report.steps}
-        self.assertEqual(StepOutcome.SKIPPED, outcomes[STEP_SIM_BATTLE_REDUCE])
-        self.assertEqual(StepOutcome.SUCCESS, outcomes[STEP_MATERIAL_EXPEDITION])
+    def wait_for(self, names, *, anchor=None, timeout=5):
+        visible = {
+            "home": {"home", "mail_button"},
+            "mail": {"mail_page"},
+            "pass": {"pass_page"},
+            "popup": {"popup_close"},
+            "unknown": {"claim", "empty"},
+        }[self.screen].copy()
+        if self.screen in ("mail", "pass"):
+            if not self.back_fails:
+                visible.add("back")
+            visible.add("claim" if self.rewards else "empty")
+            if self.contradictory:
+                visible.add("empty")
+        if anchor and anchor not in visible:
+            return set()
+        return visible.intersection(names)
 
+    def click_feature(self, feature):
+        if not self.wait_for((feature,)):
+            return False
+        self.actions.append(feature)
+        if feature == "mail_button":
+            self.screen = "mail"
+        elif feature == "back":
+            self.screen = "home"
+        elif feature == "claim" and not self.stuck:
+            self.rewards -= 1
+            self.screen = "popup"
+        elif feature == "popup_close":
+            self.screen = "mail"
+        return True
 
-class TestPcrDailyFlow(unittest.TestCase):
-    def test_runs_all_mvp_steps(self):
-        report, ctx = _run_all(PCR_DAILY_FLOW)
-        self.assertTrue(report.success)
-        self.assertEqual(6, report.completed_count)
-        self.assertIn("feature:pcr_gift_box", ctx.clicks)
-
-    def test_sweep_can_be_disabled(self):
-        enabled = {step.step_id for step in PCR_DAILY_FLOW.steps}
-        enabled.discard(STEP_SWEEP)
-        enabled.discard(STEP_GUILD_DONATE)
-        report = PCR_DAILY_FLOW.run(MockFlowContext(enabled_steps=enabled))
-        outcomes = {step.step_id: step.outcome for step in report.steps}
-        self.assertEqual(StepOutcome.SKIPPED, outcomes[STEP_SWEEP])
-        self.assertEqual(StepOutcome.SUCCESS, outcomes[STEP_COLLECT_GIFTS])
-
-
-class TestStarRailDailyFlow(unittest.TestCase):
-    def test_mvp_order(self):
-        report, ctx = _run_all(STARRAIL_DAILY_FLOW)
-        self.assertTrue(report.success)
-        self.assertEqual(5, report.completed_count)
-        self.assertTrue(any("开始: 每日实训领奖" in log for log in ctx.logs))
-
-    def test_disable_power_spend(self):
-        enabled = {step.step_id for step in STARRAIL_DAILY_FLOW.steps}
-        enabled.discard(STEP_SPEND_POWER)
-        report = STARRAIL_DAILY_FLOW.run(MockFlowContext(enabled_steps=enabled))
-        outcomes = {step.step_id: step.outcome for step in report.steps}
-        self.assertEqual(StepOutcome.SKIPPED, outcomes[STEP_SPEND_POWER])
-        self.assertEqual(StepOutcome.SUCCESS, outcomes[STEP_DAILY_TRAINING])
+    def press(self, key):
+        self.actions.append(key)
+        self.screen = "pass"
 
 
-class TestZzzDailyFlow(unittest.TestCase):
-    def test_mvp_order(self):
-        report, ctx = _run_all(ZZZ_DAILY_FLOW)
-        self.assertTrue(report.success)
-        self.assertEqual(5, report.completed_count)
-        self.assertIn("feature:zzz_business_entry", ctx.clicks)
+class TestRewardFlow(unittest.TestCase):
+    def test_multiple_claims_require_feedback_and_return_home(self):
+        ctx = RewardScreen(2)
+        result = FLOW.run_page(ctx, MAIL)
+        self.assertEqual(Outcome.CLAIMED, result.outcome)
+        self.assertEqual(["mail_button", "claim", "popup_close", "claim", "popup_close", "back"], ctx.actions)
+        self.assertEqual("home", ctx.screen)
 
-    def test_disable_battery(self):
-        enabled = {step.step_id for step in ZZZ_DAILY_FLOW.steps}
-        enabled.discard(STEP_SPEND_BATTERY)
-        report = ZZZ_DAILY_FLOW.run(MockFlowContext(enabled_steps=enabled))
-        outcomes = {step.step_id: step.outcome for step in report.steps}
-        self.assertEqual(StepOutcome.SKIPPED, outcomes[STEP_SPEND_BATTERY])
-        self.assertEqual(StepOutcome.SUCCESS, outcomes[STEP_BUSINESS])
+    def test_no_reward_is_explicit_and_rerun_is_idempotent(self):
+        ctx = RewardScreen()
+        FLOW.run_page(ctx, MAIL)
+        self.assertEqual(Outcome.EMPTY, FLOW.run_page(ctx, MAIL).outcome)
+        self.assertEqual(1, ctx.actions.count("claim"))
 
+    def test_key_navigation_requires_known_start(self):
+        ctx = RewardScreen(0)
+        ctx.screen = "unknown"
+        self.assertEqual(Outcome.FAILED, FLOW.run_page(ctx, PASS).outcome)
+        self.assertEqual([], ctx.actions)
+        ctx.screen = "home"
+        self.assertEqual(Outcome.EMPTY, FLOW.run_page(ctx, PASS).outcome)
+        self.assertEqual(["f4", "back"], ctx.actions)
+        self.assertNotIn("f4", FLOW.required_features((PASS,)))
 
-class TestGenshinDailyFlow(unittest.TestCase):
-    def test_mvp_order(self):
-        report, _ = _run_all(GENSHIN_DAILY_FLOW)
-        self.assertTrue(report.success)
-        self.assertEqual(5, len(report.steps))
+    def test_stalled_click_is_not_repeated_or_counted_as_success(self):
+        ctx = RewardScreen(stuck=True)
+        self.assertEqual(Outcome.FAILED, FLOW.run_page(ctx, MAIL).outcome)
+        self.assertEqual(1, ctx.actions.count("claim"))
+        self.assertEqual("home", ctx.screen)
 
-    def test_teapot_default_off_when_disabled(self):
-        enabled = {step.step_id for step in GENSHIN_DAILY_FLOW.steps}
-        enabled.discard(STEP_TEAPOT)
-        report = GENSHIN_DAILY_FLOW.run(MockFlowContext(enabled_steps=enabled))
-        outcomes = {step.step_id: step.outcome for step in report.steps}
-        self.assertEqual(StepOutcome.SKIPPED, outcomes[STEP_TEAPOT])
-        self.assertEqual(StepOutcome.SUCCESS, outcomes[STEP_COMMISSIONS])
+    def test_conflicting_indicators_fail_before_claim(self):
+        ctx = RewardScreen(contradictory=True)
+        self.assertEqual(Outcome.FAILED, FLOW.run_page(ctx, MAIL).outcome)
+        self.assertNotIn("claim", ctx.actions)
 
-
-class TestBhxy2DailyFlow(unittest.TestCase):
-    def test_mvp_order(self):
-        report, ctx = _run_all(BHXY2_DAILY_FLOW)
-        self.assertTrue(report.success)
-        self.assertEqual(6, len(report.steps))
-        self.assertTrue(any("开始: 每日签到" in log for log in ctx.logs))
-
-    def test_event_can_be_disabled(self):
-        enabled = {step.step_id for step in BHXY2_DAILY_FLOW.steps}
-        enabled.discard(STEP_EVENT)
-        report = BHXY2_DAILY_FLOW.run(MockFlowContext(enabled_steps=enabled))
-        outcomes = {step.step_id: step.outcome for step in report.steps}
-        self.assertEqual(StepOutcome.SKIPPED, outcomes[STEP_EVENT])
-        self.assertEqual(StepOutcome.SUCCESS, outcomes[STEP_CHECKIN])
-
-
-if __name__ == "__main__":
-    unittest.main()
+    def test_return_failure_fails_the_step(self):
+        ctx = RewardScreen(back_fails=True)
+        self.assertEqual(Outcome.FAILED, FLOW.run_page(ctx, MAIL).outcome)
+        self.assertIn("claim", ctx.actions)

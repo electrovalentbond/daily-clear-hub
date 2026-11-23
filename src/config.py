@@ -1,124 +1,83 @@
-import os
+from __future__ import annotations
 
-import numpy as np
-from ok import ConfigOption
+import logging
+
+from core.config_loader import PROJECT_ROOT, GameConfig
 
 version = "dev"
-#不需要修改version, Github Action打包会自动修改
-
-key_config_option = ConfigOption('Game Hotkey Config', { #全局配置示例
-    'Echo Key': 'q',
-    'Liberation Key': 'r',
-    'Resonance Key': 'e',
-    'Tool Key': 't',
-}, description='In Game Hotkey for Skills')
 
 
-def make_bottom_right_black(frame): #可选. 某些游戏截图时遮挡UID使用
-    """
-    Changes a portion of the frame's pixels at the bottom right to black.
+def resolution_for(game: GameConfig) -> tuple[int, int]:
+    resolution = game.options.get("resolution")
+    if (
+        not isinstance(resolution, list) or len(resolution) != 2
+        or not all(type(size) is int and size > 0 for size in resolution)
+    ):
+        raise ValueError("resolution 应为 [宽, 高]，使用正整数")
+    return tuple(resolution)
 
-    Args:
-        frame: The input frame (NumPy array) from OpenCV.
 
-    Returns:
-        The modified frame with the bottom-right corner blackened.  Returns the original frame
-        if there's an error (e.g., invalid frame).
-    """
-    try:
-        height, width = frame.shape[:2]  # Get height and width
+def target_for(game: GameConfig) -> str:
+    platform = game.string("platform")
+    if platform == "windows":
+        exe = game.string("exe")
+        if "/" in exe or "\\" in exe or not exe.lower().endswith(".exe"):
+            raise ValueError("exe 应为游戏进程名，例如 StarRail.exe")
+        interaction = game.options.get("interaction", "Pynput")
+        if interaction not in ("Pynput", "PyDirect", "PostMessage", "ForegroundPostMessage", "Genshin"):
+            raise ValueError("interaction 不是支持的 Windows 输入方式")
+        return exe
+    if platform == "adb":
+        game.string("adb_serial")
+        return game.string("package")
+    raise ValueError(f"未知平台：{platform}")
 
-        # Calculate the size of the black rectangle
-        black_width = int(0.13 * width)
-        black_height = int(0.025 * height)
 
-        # Calculate the starting coordinates of the rectangle
-        start_x = width - black_width
-        start_y = height - black_height
-
-        # Create a black rectangle (NumPy array of zeros)
-        black_rect = np.zeros((black_height, black_width, frame.shape[2]), dtype=frame.dtype)  # Ensure same dtype
-
-        # Replace the bottom-right portion of the frame with the black rectangle
-        frame[start_y:height, start_x:width] = black_rect
-
-        return frame
-    except Exception as e:
-        print(f"Error processing frame: {e}")
-        return frame
-
-config = {
-    'custom_tasks':True, # enable creating and editing custom tasks
-    'debug': False,  # Optional, default: False
-    'use_gui': True, # 目前只支持True
-    'config_folder': 'configs', #最好不要修改
-    'global_configs': [key_config_option],
-    'screenshot_processor': make_bottom_right_black, # 在截图的时候对frame进行修改, 可选
-    'gui_icon': 'icons/icon.png', #窗口图标, 最好不需要修改文件名
-    'wait_until_before_delay': 0,
-    'wait_until_check_delay': 0,
-    'wait_until_settle_time': 0, #调用 wait_until时候, 在第一次满足条件的时候, 会等待再次检测, 以避免某些滑动动画没到预定位置就在动画路径中被检测到
-    'ocr': { #可选, 使用的OCR库
-        'lib': 'onnxocr',
-        'auto_simplify': True, #自动繁体转简体, 需要ppocrv5等可以识别繁体的库
-        'params': {
-            'use_openvino': True,
+def make_profile(game_id: str, game: GameConfig, *, gui: bool = False, debug: bool = False) -> dict:
+    width, height = resolution_for(game)
+    target = target_for(game)
+    templates = game.path("templates")
+    profile = {
+        "version": version,
+        "use_gui": gui,
+        "debug": debug,
+        "check_mutex": False,
+        "custom_tasks": False,
+        "config_folder": str(PROJECT_ROOT / "configs" / game_id),
+        "gui_title": f"Daily Clear Hub · {game.name}",
+        "gui_icon": str(PROJECT_ROOT / "icons" / "icon.png"),
+        "wait_until_settle_time": 0,
+        "start_timeout": 20,
+        "supported_resolution": {"ratio": f"{width}:{height}", "min_size": (width, height)},
+        "onetime_tasks": [["ok", "DiagnosisTask"]] if gui else [],
+        "screenshots_folder": str(PROJECT_ROOT / "screenshots" / game_id),
+    }
+    if templates.is_file():
+        profile["template_matching"] = {"coco_feature_json": str(templates), "default_threshold": 0.85}
+    if game.string("platform") == "windows":
+        profile["windows"] = {
+            "exe": [target],
+            "start_exe": False,
+            "interaction": [game.options.get("interaction", "Pynput")],
+            "capture_method": ["WGC", "BitBlt_RenderFull", "BitBlt"],
         }
-    },
-    'windows': {  # Windows游戏请填写此设置
-        'exe': ['BH3.exe', 'StarRail.exe', 'ZenlessZoneZero.exe', 'YuanShen.exe'],
-        # optional, if set, will search the exe only
-        # 'hwnd_class': 'UnrealWindow', #增加重名检查准确度
-        'interaction': ['Pynput', 'PostMessage', 'Genshin', 'PyDirect','ForegroundPostMessage'], # Genshin:某些操作可以后台, 部分游戏支持 PostMessage:可后台点击, 极少游戏支持 ForegroundPostMessage:前台使用PostMessage Pynput/PyDirect:仅支持前台使用
-        'capture_method': ['WGC', 'BitBlt_RenderFull', 'BitBlt'],  # Windows版本支持的话, 优先使用WGC, 否则使用BitBlt_Full. 支持的capture有 BitBlt, WGC, BitBlt_RenderFull, DXGI
-        'check_hdr': False, #当用户开启AutoHDR时候提示用户, 但不禁止使用
-        'force_no_hdr': False, #True=当用户开启AutoHDR时候禁止使用
-        'require_bg': True # 要求使用后台截图
-    },
-    'adb': {
-        'packages': ['com.bilibili.priconne']
-    },
-    'start_timeout': 120,  # default 60
-    'window_size': { #ok-script窗口大小
-        'width': 1200,
-        'height': 800,
-        'min_width': 600,
-        'min_height': 450,
-    },
-    'supported_resolution': {
-        'ratio': '16:9', #支持的游戏分辨率
-        'min_size': (1280, 720), #支持的最低游戏分辨率
-        'resize_to': [(2560, 1440), (1920, 1080), (1600, 900), (1280, 720)], #可选, 如果非16:9自动缩放为 resize_to
-    },
-    'links': { # 关于里显示的链接, 可选
-            'default': {
-                'github': 'https://github.com/ok-oldking/ok-py',
-                'discord': 'https://discord.gg/vVyCatEBgA',
-                'share': 'Download from https://github.com/ok-oldking/ok-py',
-                'qq_group':'https://qm.qq.com/q/3Gq4VLvQe',
-                'qq_channel': 'https://pd.qq.com/s/djmm6l44y',
-                'faq': 'https://github.com/ok-oldking/ok-py'
-            }
-        },
-    'screenshots_folder': "screenshots", #截图存放目录, 每次重新启动会清空目录
-    'gui_title': 'Daily Clear Hub',  #窗口名
-    'template_matching': { # 可选, 如使用OpenCV的模板匹配
-        'coco_feature_json': os.path.join('assets', 'coco_annotations.json'), #coco格式标记, 需要png图片, 在debug模式运行后, 会对进行切图仅保留被标记部分以减少图片大小
-        'default_horizontal_variance': 0.002, #默认x偏移, 查找不传box的时候, 会根据coco坐标, match偏移box内的
-        'default_vertical_variance': 0.002, #默认y偏移
-        'default_threshold': 0.8, #默认threshold
-    },
-    'version': version, #版本
-    'my_app': ['src.globals', 'Globals'], #可选. 全局单例对象, 可以存放加载的模型, 使用og.my_app调用
-    'onetime_tasks': [
-        ["src.tasks.DailyClearTask", "DailyClearTask"],
-        ["games.honkai3.tasks.daily", "Honkai3DailyTask"],
-        ["games.starrail.tasks.daily", "StarRailDailyTask"],
-        ["games.zzz.tasks.daily", "ZzzDailyTask"],
-        ["games.genshin.tasks.daily", "GenshinDailyTask"],
-        ["games.pcr.tasks.daily", "PcrDailyTask"],
-        ["games.bhxy2.tasks.daily", "Bhxy2DailyTask"],
-        ["src.tasks.MyOneTimeTask", "MyOneTimeTask"],
-        ["ok", "DiagnosisTask"],
-    ],
-}
+    else:
+        # 保持包列表为空，避免框架自动打开选中设备上的应用。
+        # 运行任务前会另外核对设备序列号和前台包名。
+        profile["adb"] = {"packages": []}
+    return profile
+
+
+def open_profile(game_id: str, game: GameConfig, *, gui: bool = False, debug: bool = False):
+    from ok import OK
+
+    def filter_environment(record: logging.LogRecord) -> bool:
+        return not record.getMessage().startswith("ok:env ")
+
+    # 1.0.154 会在启动时记录所有环境变量值。
+    logger = logging.getLogger("ok")
+    logger.addFilter(filter_environment)
+    try:
+        return OK(make_profile(game_id, game, gui=gui, debug=debug))
+    finally:
+        logger.removeFilter(filter_environment)
