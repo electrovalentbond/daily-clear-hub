@@ -107,6 +107,13 @@ class TestScheduler(unittest.TestCase):
                 [sys.executable, "-c", "import time; time.sleep(10)"], Path.cwd(), 10, cancelled=lambda: True,
             )
 
+    def test_process_writes_stderr_to_diagnostic_file(self):
+        with tempfile.TemporaryFile() as stderr:
+            self.assertEqual(1, run_command([sys.executable, "-c", "raise RuntimeError('test')"], Path.cwd(), 5,
+                                            stderr=stderr))
+            stderr.seek(0)
+            self.assertIn(b"RuntimeError: test", stderr.read())
+
     def test_plan_works_without_ok_script_or_templates(self):
         with tempfile.TemporaryDirectory() as tmp:
             missing_local = str(Path(tmp) / DEFAULT_LOCAL_CONFIG_PATH.name)

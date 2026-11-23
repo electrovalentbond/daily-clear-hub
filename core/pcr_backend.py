@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from functools import partial
 from pathlib import Path
 from shutil import which
 from tempfile import TemporaryDirectory, TemporaryFile
@@ -71,9 +72,11 @@ def check_pcr(game: GameConfig) -> None:
             raise ValueError(f"pcr-script 找不到 ADB，请检查 Extra.adb_path：{adb}")
 
 
-def run_pcr(game: GameConfig, run_command: Callable[..., int]) -> None:
+def run_pcr(
+    game: GameConfig, run_command: Callable[..., int], *, log: Callable[[str], None] = partial(print, flush=True),
+) -> None:
     if "_pcr_runtime_config" not in game.options:
-        _run_cli(game, run_command, game.path("pcr_config"))
+        _run_cli(game, run_command, game.path("pcr_config"), log)
         return
     with TemporaryDirectory(prefix="daily-clear-pcr-") as directory:
         config_path = Path(directory) / "daily_config.yml"
@@ -81,10 +84,10 @@ def run_pcr(game: GameConfig, run_command: Callable[..., int]) -> None:
             yaml.safe_dump(_config_payload(game), allow_unicode=True),
             encoding="utf-8",
         )
-        _run_cli(game, run_command, config_path)
+        _run_cli(game, run_command, config_path, log)
 
 
-def _run_cli(game: GameConfig, run_command: Callable[..., int], config_path: Path) -> None:
+def _run_cli(game: GameConfig, run_command: Callable[..., int], config_path: Path, log: Callable[[str], None]) -> None:
     command = [
         str(_python_path(game)), "-X", "utf8", "-u", "daily_task.py",
         "--config", str(config_path),
@@ -103,7 +106,7 @@ def _run_cli(game: GameConfig, run_command: Callable[..., int], config_path: Pat
     if not isinstance(report, dict):
         lines = [line for line in stdout.splitlines() if line.strip()]
         for line in lines[-8:]:
-            print(f"pcr-script 输出：{line[:400]}", flush=True)
+            log(f"pcr-script 输出：{line[:400]}")
         raise ValueError(f"pcr-script 未返回最终 JSON 报告（退出码 {code}）；请查看上游 cache/daily/runs")
 
     tasks = report.get("tasks")
@@ -116,12 +119,12 @@ def _run_cli(game: GameConfig, run_command: Callable[..., int], config_path: Pat
     if not valid_tasks:
         raise ValueError(f"pcr-script 没有可核实的任务结果（退出码 {code}）；请查看上游 cache/daily/runs")
     for task in tasks:
-        print(f"  {task['task']}  {task['status']}", flush=True)
+        log(f"  {task['task']}  {task['status']}")
         reasons = task.get("reasons")
         if task["status"] not in VERIFIED_TASK_STATUSES and isinstance(reasons, list):
             for reason in reasons:
                 if isinstance(reason, str) and reason.strip():
-                    print(f"  {task['task']} 失败原因：{reason.strip()[:400]}", flush=True)
+                    log(f"  {task['task']} 失败原因：{reason.strip()[:400]}")
     if code or report.get("status") != "complete" or report.get("verified") is not True or any(
         task["status"] not in VERIFIED_TASK_STATUSES for task in tasks
     ):

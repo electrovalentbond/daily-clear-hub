@@ -20,9 +20,23 @@ Daily Clear Hub 可以直接运行 [pcr-script](https://github.com/Gibberer/pcr-
 
 ### 查看一次托管失败的原因
 
-账号汇总只显示「停在 `DailyClearPcrRun`」时，打开 AUTO-MAS「历史记录」对应的运行详情，从附件打开 `run.worker.log`。搜索 `公主连结运行失败`、`失败原因`、`pcr-script 输出` 或 `[Agent:`。这些行可能包含本机路径、设备未连接、游戏未登录或识别失败等具体信息。已有托管更新 Hub 仓库后，下次运行就会使用新版结果日志。[AUTO-MAS Agent 日志转发](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/tools/core/runner/runner.py#L3119-L3158)
+账号汇总只显示「停在 `DailyClearPcrRun`」时，打开 AUTO-MAS「历史记录」对应的运行详情，从附件打开 `run.worker.log`。搜索 `公主连结运行失败`、`失败原因`、`pcr-script 输出` 或 `[Agent:`。运行结束后，详细日志通常会归档到 AUTO-MAS 安装目录的 `history`。磁盘上的附件可能按数字编号。[AUTO-MAS 日志归档](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/core/history.py#L435-L489)
 
-如果本轮已启动上游脚本，可以在安装输出中 `pcr project:` 对应的目录下打开 `cache/daily/runs/`，查看时间对应的 `console.log` 和 `summary.json`。[pcr-script 运行记录](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/run_session.py)
+如果本轮已启动上游脚本，可以在安装输出中 `pcr project:` 对应的目录下打开 `cache/daily/runs/`，查看对应时刻的 `console.log` 和 `summary.json`。用默认安装目录时，可用 PowerShell 读最近一份 `console.log`。[pcr-script 运行记录](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/run_session.py)
+
+```powershell
+$Tools = Join-Path $env:USERPROFILE 'Games\DailyAutomation'
+$Install = Get-Content (Join-Path $Tools 'pcr-automas\local.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+$Log = Get-ChildItem (Join-Path $Install.pcr_root 'cache\daily\runs') -Recurse -File -Filter 'console.log' -ErrorAction SilentlyContinue |
+    Sort-Object LastWriteTime -Descending | Select-Object -First 1
+if ($Log) { $Log.LastWriteTime; Get-Content -LiteralPath $Log.FullName -Tail 30 -Encoding UTF8 }
+```
+
+新版接入会把预检、任务结果和 pcr-script 的错误输出追加到 `%LOCALAPPDATA%\DailyClearHub\pcr-automas.log`。已有托管可用 `git pull --ff-only` 更新仓库，再运行 `setup-windows.ps1 -Games pcr`。在托管启用「跟随来源目录」并点「立即同步」，单独跑一次公主连结，之后用下面命令读取文件。
+
+```powershell
+Get-Content (Join-Path $env:LOCALAPPDATA 'DailyClearHub\pcr-automas.log') -Tail 40 -Encoding UTF8
+```
 
 ## 可选的命令行调度
 

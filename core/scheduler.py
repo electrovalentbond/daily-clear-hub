@@ -97,10 +97,11 @@ def _stop_process(process: subprocess.Popen) -> None:
 
 
 def run_command(
-    command: list[str], cwd: Path, timeout: int, *, stdout=None, cancelled: Callable[[], bool] | None = None
+    command: list[str], cwd: Path, timeout: int, *, stdout=None, stderr=None,
+    cancelled: Callable[[], bool] | None = None,
 ) -> int:
     kwargs = {"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP} if os.name == "nt" else {"start_new_session": True}
-    process = subprocess.Popen(command, cwd=cwd, stdin=subprocess.DEVNULL, stdout=stdout, **kwargs)
+    process = subprocess.Popen(command, cwd=cwd, stdin=subprocess.DEVNULL, stdout=stdout, stderr=stderr, **kwargs)
     try:
         if cancelled is None:
             return process.wait(timeout=timeout)

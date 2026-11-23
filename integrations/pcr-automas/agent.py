@@ -1,8 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
 import subprocess
 import sys
+import traceback
+from contextlib import nullcontext
+from datetime import datetime
 from functools import partial
 from pathlib import Path
 
@@ -11,6 +15,7 @@ from maa.custom_action import CustomAction
 
 
 INSTALL_CONFIG = Path(__file__).with_name("local.json")
+LOG_PATH = Path(os.environ.get("LOCALAPPDATA") or Path.home()) / "DailyClearHub" / "pcr-automas.log"
 TASK_NODES = (
     "DailyClearPcrSchedule",
     "DailyClearPcrQuestReward",
@@ -33,7 +38,7 @@ def selected_tasks(context, task_rows):
     return tuple(tasks)
 
 
-def launch(context):
+def launch(context, log, stderr):
     try:
         installation = json.loads(INSTALL_CONFIG.read_text(encoding="utf-8-sig"))
         hub = Path(installation["hub_root"])
@@ -74,21 +79,45 @@ def launch(context):
         if find_pcr_target(adb, serial) is None:
             raise ValueError(f"选中的模拟器 {serial} 未连接，或未安装公主连结 B 服")
         check_pcr(game)
-        run_pcr(game, partial(run_command, cancelled=lambda: tasker.stopping))
+        log(f"ADB 设备 {serial} 已就绪，启动 pcr-script")
+        run_pcr(game, partial(run_command, cancelled=lambda: tasker.stopping, stderr=stderr), log=log)
+
+
+def open_log():
+    try:
+        LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+        return LOG_PATH.open("a", encoding="utf-8", buffering=1)
+    except OSError as exc:
+        print(f"无法写入公主连结诊断日志 {LOG_PATH}：{exc}", flush=True)
+        return nullcontext(None)
 
 
 @AgentServer.custom_action("DailyClearPcr")
 class DailyClearPcr(CustomAction):
     def run(self, context, _argv):
-        try:
-            launch(context)
-        except subprocess.TimeoutExpired:
-            print("公主连结运行或设备连接超时", flush=True)
-            return False
-        except (ImportError, OSError, RuntimeError, ValueError) as exc:
-            print(f"公主连结运行失败：{exc}", flush=True)
-            return False
-        return True
+        with open_log() as stream:
+            def log(message):
+                print(message, flush=True)
+                if stream is not None:
+                    try:
+                        stream.write(f"[{datetime.now():%Y-%m-%d %H:%M:%S}] {message}\n")
+                    except OSError as exc:
+                        print(f"写入公主连结诊断日志失败：{exc}", flush=True)
+
+            log("开始公主连结日常")
+            try:
+                launch(context, log, stream)
+            except subprocess.TimeoutExpired:
+                log("公主连结运行或设备连接超时")
+                return False
+            except (ImportError, OSError, RuntimeError, ValueError) as exc:
+                log(f"公主连结运行失败：{exc}")
+                return False
+            except Exception:
+                log(f"公主连结接入异常：\n{traceback.format_exc()}")
+                return False
+            log("公主连结日常完成")
+            return True
 
 
 if __name__ == "__main__":

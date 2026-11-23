@@ -48,8 +48,10 @@ class PcrAutomasTests(unittest.TestCase):
             context = self.context(adb, {"QuestReward", "Gift"})
             installation = project / "local.json"
             installation.write_text(json.dumps({"hub_root": str(ROOT), "pcr_root": directory}), encoding="utf-8")
+            log_path = project / "logs" / "pcr-automas.log"
             with (
                 patch.object(self.agent, "INSTALL_CONFIG", installation),
+                patch.object(self.agent, "LOG_PATH", log_path),
                 patch("core.scheduler.run_lock"),
                 patch("core.pcr_setup.find_pcr_target", return_value="emulator-5556") as target,
                 patch("core.pcr_backend.check_pcr"),
@@ -65,6 +67,19 @@ class PcrAutomasTests(unittest.TestCase):
             })
             context.tasker.stopping = True
             self.assertTrue(command.keywords["cancelled"]())
+            log = log_path.read_text(encoding="utf-8")
+            self.assertIn("ADB 设备 emulator-5556 已就绪", log)
+            self.assertIn("公主连结日常完成", log)
+
+    def test_preflight_failure_stays_in_log_after_returning_to_automas(self):
+        with tempfile.TemporaryDirectory() as directory:
+            log_path = Path(directory) / "logs" / "pcr-automas.log"
+            with (
+                patch.object(self.agent, "LOG_PATH", log_path),
+                patch.object(self.agent, "launch", side_effect=ValueError("模拟器里未安装公主连结 B 服")),
+            ):
+                self.assertFalse(self.agent.DailyClearPcr().run(None, None))
+            self.assertIn("公主连结运行失败：模拟器里未安装公主连结 B 服", log_path.read_text(encoding="utf-8"))
 
     def test_empty_tasks_do_not_start_the_game(self):
         from core.pcr_setup import PCR_DAILY_TASKS
