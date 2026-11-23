@@ -11,6 +11,7 @@ param(
 $ErrorActionPreference = 'Stop'
 $HubRoot = Split-Path -Parent $PSScriptRoot
 $ToolsRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ToolsRoot)
+$Downloads = Join-Path $ToolsRoot 'Downloads'
 $Games = @($Games | ForEach-Object { $_.ToLowerInvariant() } | Select-Object -Unique)
 
 function Invoke-CheckedNative([string]$Command, [string[]]$Arguments) {
@@ -36,15 +37,73 @@ function Get-ProjectPython([string]$Project) {
     return $Python
 }
 
-function Confirm-AssetHash([string]$Path, [string]$Sha256) {
-    if ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -ne $Sha256) {
-        throw "SHA-256 mismatch for $Path."
-    }
+function Test-AssetHash([string]$Path, [string]$Sha256) {
+    return (Test-Path -LiteralPath $Path -PathType Leaf) -and
+        ((Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash -eq $Sha256)
 }
 
 function Receive-Asset([string]$Url, [string]$Path, [string]$Sha256) {
-    Invoke-CheckedNative 'curl.exe' @('--fail', '--location', '--retry', '2', '--output', $Path, $Url)
-    Confirm-AssetHash $Path $Sha256
+    if (Test-Path -LiteralPath $Path -PathType Leaf) {
+        if (-not (Test-AssetHash $Path $Sha256)) {
+            throw "SHA-256 mismatch for $Path. Remove that file before trying again."
+        }
+        return
+    }
+
+    [IO.Directory]::CreateDirectory((Split-Path -Parent $Path)) | Out-Null
+    $Partial = "$Path.part"
+    if (Test-AssetHash $Partial $Sha256) {
+        [IO.File]::Move($Partial, $Path)
+        return
+    }
+
+    # Handle curl exit codes ourselves in both Windows PowerShell and PowerShell 7.
+    $Curl = (Get-Command curl.exe -CommandType Application | Select-Object -First 1).Source
+    $PSNativeCommandUseErrorActionPreference = $false
+    $MaxAttempts = 4
+    for ($Attempt = 1; $Attempt -le $MaxAttempts; $Attempt++) {
+        $Resume = (Test-Path -LiteralPath $Partial -PathType Leaf) -and
+            (Get-Item -LiteralPath $Partial).Length -gt 0
+        $CurlArgs = @('--fail', '--location', '--connect-timeout', '30',
+            '--output', $Partial, '--write-out', '%{http_code}')
+        if ($Resume) {
+            $CurlArgs += @('--continue-at', '-')
+        }
+        $HttpStatus = & {
+            $ErrorActionPreference = 'Continue'
+            & $Curl @CurlArgs $Url
+        }
+        $CurlCode = $LASTEXITCODE
+
+        if ($CurlCode -eq 0 -or ($Resume -and $HttpStatus -eq '416')) {
+            if (Test-AssetHash $Partial $Sha256) {
+                [IO.File]::Move($Partial, $Path)
+                return
+            }
+            Remove-Item -LiteralPath $Partial -ErrorAction SilentlyContinue
+            if (-not $Resume -or $Attempt -eq $MaxAttempts) {
+                throw "SHA-256 mismatch for $Path."
+            }
+            Write-Host 'The resumed download failed verification. Restarting from byte zero.'
+            continue
+        }
+
+        if ($Resume -and $CurlCode -in @(33, 36)) {
+            Remove-Item -LiteralPath $Partial -ErrorAction SilentlyContinue
+            if ($Attempt -lt $MaxAttempts) {
+                Write-Host 'The server refused the resume request. Restarting from byte zero.'
+                continue
+            }
+        }
+
+        $Retryable = $CurlCode -in @(5, 6, 7, 16, 18, 28, 35, 52, 55, 56, 92) -or
+            $HttpStatus -in @('408', '429', '500', '502', '503', '504')
+        if (-not $Retryable -or $Attempt -eq $MaxAttempts) {
+            throw "Download failed for $Path (curl $CurlCode, HTTP $HttpStatus). Rerun setup to retry or resume."
+        }
+        Write-Host "Download interrupted (curl $CurlCode, HTTP $HttpStatus). Retrying ($($Attempt + 1)/$MaxAttempts)."
+        Start-Sleep -Seconds (2 * $Attempt)
+    }
 }
 
 function Find-ReleaseEntry([string]$Root, [string]$Filename) {
@@ -66,14 +125,15 @@ function Install-ZipRelease([hashtable]$Release) {
     }
 
     $Staging = Join-Path $ToolsRoot ('.setup-' + [guid]::NewGuid().ToString('N'))
+    $Zip = Join-Path $Downloads ([IO.Path]::GetFileName($Release.Url))
     [IO.Directory]::CreateDirectory($Staging) | Out-Null
     try {
-        $Zip = Join-Path $Staging 'release.zip'
         $Payload = Join-Path $Staging 'payload'
         Receive-Asset $Release.Url $Zip $Release.Sha256
         Expand-Archive -LiteralPath $Zip -DestinationPath $Payload
         Find-ReleaseEntry $Payload $Release.Entry | Out-Null
         [IO.Directory]::Move($Payload, $Destination)
+        Remove-Item -LiteralPath $Zip -ErrorAction SilentlyContinue
     } finally {
         Remove-Item -LiteralPath $Staging -Recurse -Force -ErrorAction SilentlyContinue
     }
@@ -126,21 +186,9 @@ function Install-BetterGI {
         return
     }
 
-    $Downloads = Join-Path $ToolsRoot 'Downloads'
     $Installer = Join-Path $Downloads 'BetterGI.Install.0.67.0.exe'
     $Sha256 = 'b065a7301d44bb818a313e07513b5a90d356003a5115a83749246a4b03fa2308'
-    if (Test-Path -LiteralPath $Installer -PathType Leaf) {
-        Confirm-AssetHash $Installer $Sha256
-    } else {
-        [IO.Directory]::CreateDirectory($Downloads) | Out-Null
-        $Partial = Join-Path $Downloads ('.setup-' + [guid]::NewGuid().ToString('N'))
-        try {
-            Receive-Asset 'https://github.com/babalae/better-genshin-impact/releases/download/0.67.0/BetterGI.Install.0.67.0.exe' $Partial $Sha256
-            [IO.File]::Move($Partial, $Installer)
-        } finally {
-            Remove-Item -LiteralPath $Partial -Force -ErrorAction SilentlyContinue
-        }
-    }
+    Receive-Asset 'https://github.com/babalae/better-genshin-impact/releases/download/0.67.0/BetterGI.Install.0.67.0.exe' $Installer $Sha256
     Write-Host "genshin installer: $Installer"
     Write-Host "genshin suggested install directory: $Target"
 }
@@ -175,22 +223,31 @@ function Prepare-Pcr {
     Write-Host "pcr Python: $Python"
 }
 
-$HubPython = Get-ProjectPython $HubRoot
-Invoke-CheckedNative $HubPython @('-m', 'pip', 'install', '--disable-pip-version-check', 'PyYAML==6.0.3')
-Write-Host "Hub Python: $HubPython"
 [IO.Directory]::CreateDirectory($ToolsRoot) | Out-Null
-
-if ($Games | Where-Object { $_ -ne 'pcr' }) {
-    $MasExe = Install-ZipRelease $Releases.automas
-    Write-Host "AUTO-MAS: $MasExe"
+try {
+    $SetupLock = [IO.File]::Open((Join-Path $ToolsRoot '.setup.lock'), 'OpenOrCreate', 'ReadWrite', 'None')
+} catch [IO.IOException] {
+    throw "Could not lock $ToolsRoot. Check whether another setup is running or the directory is accessible."
 }
-foreach ($Game in $Games) {
-    switch ($Game) {
-        'genshin' { Install-BetterGI }
-        'pcr' { Prepare-Pcr }
-        default {
-            $Entry = Install-ZipRelease $Releases[$Game]
-            Write-Host ("${Game}: " + (Split-Path -Parent $Entry))
+try {
+    $HubPython = Get-ProjectPython $HubRoot
+    Invoke-CheckedNative $HubPython @('-m', 'pip', 'install', '--disable-pip-version-check', 'PyYAML==6.0.3')
+    Write-Host "Hub Python: $HubPython"
+
+    if ($Games | Where-Object { $_ -ne 'pcr' }) {
+        $MasExe = Install-ZipRelease $Releases.automas
+        Write-Host "AUTO-MAS: $MasExe"
+    }
+    foreach ($Game in $Games) {
+        switch ($Game) {
+            'genshin' { Install-BetterGI }
+            'pcr' { Prepare-Pcr }
+            default {
+                $Entry = Install-ZipRelease $Releases[$Game]
+                Write-Host ("${Game}: " + (Split-Path -Parent $Entry))
+            }
         }
     }
+} finally {
+    $SetupLock.Dispose()
 }

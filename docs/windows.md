@@ -34,6 +34,15 @@ Set-Location $Hub
 
 可以在 `-Games` 里只列需要的游戏。省略 `-Games` 会准备六款 AUTO-MAS 游戏。脚本下载并校验正式包、准备 Python 环境，再输出 AUTO-MAS 程序和各游戏的资源路径。原神的 BetterGI 安装器需打开一次，安装路径可用脚本给出的建议。已用过上游工具时，可以直接复用已有目录。若当前 PowerShell 的执行策略阻止脚本，可在该窗口运行 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` 后重试。
 
+如果需要通过代理下载，在启动脚本前设置当前 PowerShell 窗口的代理。把 `7890` 换成实际 HTTP 或混合代理端口。
+
+```powershell
+$env:HTTPS_PROXY = 'http://127.0.0.1:7890'
+& .\scripts\setup-windows.ps1 -Games honkai3,starrail,zzz,genshin,pcr,bhxy2,endfield
+```
+
+遇到 `curl 56` 等连接中断时，脚本会自动重试。若仍中断，保留工具目录 `Downloads` 里的 `.part` 文件并重跑同一条命令。支持续传的服务器会从已有字节继续。完整文件通过 SHA-256 校验后才会解压或交给安装器。
+
 工具默认放在 `$env:USERPROFILE\Games\DailyAutomation`。若用户名含中文或安装路径需要简化，可指定同一个新目录。自动识别公主连结时，把该目录一并传给 Hub。
 
 ```powershell
