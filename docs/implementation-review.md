@@ -1,8 +1,8 @@
 # 七款游戏的日常实现评估
 
-2026 年 11 月 23 日核对上游默认分支。以下源码链接固定到本次检查的提交。
+2026 年 11 月 23 日核对上游源码及发布版本。源码链接指向本次检查的提交或发行标签。
 
-Hub 统一了队列入口、日常选择、运行超时和结果判定。各游戏仍需要独立的页面路线和实机画面。内置流程覆盖能从界面核对结果的免费领奖。星铁和崩坏学园 2 可以选用现成工具执行更完整的日常。
+Hub 统一了队列入口、日常选择、运行超时和结果判定。七款游戏都可使用上游自带的素材，实际任务范围由对应工具的游戏区服、登录状态与任务配置决定。内置 ok-script 路线依然适用于使用本机模板的免费领奖。
 
 ## MAA 与 MaaFramework
 
@@ -14,7 +14,7 @@ Hub 统一了队列入口、日常选择、运行超时和结果判定。各游�
 
 ### 崩坏 3
 
-旧流程用通用按钮串起材料远征、家园和舰团。Maa_bbb 将它们作为独立流程，还有专门的作战任务及邮件领奖操作。Hub 内置舰桥进入作战任务领奖和邮件附件领取。Maa_bbb 的启动器可按配置启动任务，自动关窗由 GUI 执行，未核对到可供 Hub 判断整轮成功的退出契约。[Maa_bbb 功能与启动参数](https://github.com/miaojiuqing/Maa_bbb/blob/fab1d55b73ab8a6016be0888a18f5928463e2b83/README.md#主要功能) · [奖励节点](https://github.com/miaojiuqing/Maa_bbb/tree/fab1d55b73ab8a6016be0888a18f5928463e2b83/assets/resource/base/pipeline/日常/奖励领取) · [启动器完成动作](https://github.com/overflow65537/MFW-PyQt6/blob/4ce4fe72ec54424f6aa97a696b8cb721bd365d59/app/core/runner/task_flow.py#L4444-L4454)
+旧流程用通用按钮串起材料远征、家园和舰团。Maa_bbb 将它们作为独立流程，还有专门的作战任务及邮件领奖操作。Hub 内置舰桥进入作战任务领奖和邮件附件领取。Maa_bbb 可作为通用 MFW 项目由 AUTO-MAS 执行。Hub 核对项目来源，取得本轮任务 ID 后读取账号完成报告。[Maa_bbb 功能与启动参数](https://github.com/miaojiuqing/Maa_bbb/blob/fab1d55b73ab8a6016be0888a18f5928463e2b83/README.md#主要功能) · [奖励节点](https://github.com/miaojiuqing/Maa_bbb/tree/fab1d55b73ab8a6016be0888a18f5928463e2b83/assets/resource/base/pipeline/日常/奖励领取) · [启动器完成动作](https://github.com/overflow65537/MFW-PyQt6/blob/4ce4fe72ec54424f6aa97a696b8cb721bd365d59/app/core/runner/task_flow.py#L4444-L4454)
 
 ### 崩坏：星穹铁道
 
@@ -22,15 +22,15 @@ Hub 统一了队列入口、日常选择、运行超时和结果判定。各游�
 
 ### 绝区零
 
-旧流程把刮卡、电量和任务奖励简化成少数入口按钮。绝区零一条龙的刮卡需要到店交互，电量消耗依赖关卡和结算，活跃度奖励有独立条件。Hub 内置从已打开的游戏菜单领取邮件附件。一条龙启动器的进程退出码没有传递日常结果，本次保留手动使用该工具的方式。[邮件流程](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/734e1321706d4802bb851e77d09d9393fb1c2889/src/zzz_od/application/email_app/email_app.py#L33-L82) · [活跃度判断](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/734e1321706d4802bb851e77d09d9393fb1c2889/src/zzz_od/application/engagement_reward/engagement_reward_app.py#L35-L85) · [启动器](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/734e1321706d4802bb851e77d09d9393fb1c2889/src/one_dragon/launcher/application_launcher.py#L72-L92)
+旧流程把刮卡、电量和任务奖励简化成少数入口按钮。绝区零一条龙的刮卡需要到店交互，电量消耗依赖关卡和结算，活跃度奖励有独立条件。Hub 内置从已打开的游戏菜单领取邮件附件。AUTO-MAS 绝区零专项利用本轮日志和应用记录判定配置中的各项任务。Hub 以该轮的账号结果判定完成情况。[邮件流程](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/734e1321706d4802bb851e77d09d9393fb1c2889/src/zzz_od/application/email_app/email_app.py#L33-L82) · [活跃度判断](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/blob/734e1321706d4802bb851e77d09d9393fb1c2889/src/zzz_od/application/engagement_reward/engagement_reward_app.py#L35-L85) · [AUTO-MAS 终态判定](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/ZzzOd/AutoProxy.py#L1169-L1247)
 
 ### 原神
 
-BetterGI 从冒险之证领历练点，再去冒险家协会领委托和派遣奖励。秘境需要导航、战斗和石化古树领奖。旧流程里的通用「树脂本扫荡」无法表达这些状态。内置流程保留邮件、冒险历练点和可选的纪行奖励页，采用游戏默认的 Esc、F1、F4 导航。协会领取和重新派遣需要额外导航，移出内置范围。BetterGI 的 `startOneDragon` 可启动选定流程，现有公开启动命令没有展示可用的整轮完成结果。[历练点流程](https://github.com/babalae/better-genshin-impact/blob/5a88c99ba16cd9808c447cda128adb8fe488c288/BetterGenshinImpact/GameTask/Common/Job/ClaimEncounterPointsRewardsTask.cs#L67-L149) · [日常奖励](https://github.com/babalae/better-genshin-impact/blob/5a88c99ba16cd9808c447cda128adb8fe488c288/BetterGenshinImpact/GameTask/Common/Job/ClaimDailyRewardsTask.cs#L45-L71) · [秘境战斗](https://github.com/babalae/better-genshin-impact/blob/5a88c99ba16cd9808c447cda128adb8fe488c288/BetterGenshinImpact/GameTask/AutoDomain/AutoDomainTask.cs#L435-L507) · [BetterGI 命令行](https://www.bettergi.com/feats/command/introduce.html)
+BetterGI 从冒险之证领历练点，再去冒险家协会领委托和派遣奖励。秘境需要导航、战斗和石化古树领奖。旧流程里的通用「树脂本扫荡」无法表达这些状态。内置流程保留邮件、冒险历练点和可选的纪行奖励页，采用游戏默认的 Esc、F1、F4 导航。协会领取和重新派遣需要额外导航，移出内置范围。AUTO-MAS 原神专项运行配置里指定的一条龙。上游把分步执行失败标记为部分失败，Hub 在本轮账号报告中将其计入未完成。少数领取操作仍以 BetterGI 本身的核验能力为限。[历练点流程](https://github.com/babalae/better-genshin-impact/blob/5a88c99ba16cd9808c447cda128adb8fe488c288/BetterGenshinImpact/GameTask/Common/Job/ClaimEncounterPointsRewardsTask.cs#L67-L149) · [日常奖励](https://github.com/babalae/better-genshin-impact/blob/5a88c99ba16cd9808c447cda128adb8fe488c288/BetterGenshinImpact/GameTask/Common/Job/ClaimDailyRewardsTask.cs#L45-L71) · [秘境战斗](https://github.com/babalae/better-genshin-impact/blob/5a88c99ba16cd9808c447cda128adb8fe488c288/BetterGenshinImpact/GameTask/AutoDomain/AutoDomainTask.cs#L435-L507) · [AUTO-MAS 日常结果](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/BetterGI/AutoProxy.py#L2177-L2205)
 
 ### 公主连结
 
-Princess-connection-farm 用不同的页面和按钮状态识别礼物与任务奖励，也处理礼物上限。Rino 的主线扫荡有预设、次数、体力判断等分支。旧流程只尝试通用冒险入口和扫荡按钮，地下城支援及行会捐赠也未确认实际结果。Hub 内置礼物和任务奖励，优先验证领取和领空。由截图确认模拟器为横屏。[旧农场实现](https://github.com/SimonShi1994/Princess-connection-farm/blob/dc37848d2437ce66e92d9e82186beae13d679c08/automator_mixins/_routine.py#L235-L266) · [Rino 主线扫荡](https://github.com/miaoyu2233/Rino_PCRautomation/blob/4e3a3fc9bf7f1132804bd807bd467b484d841551/Resource/base/pipeline/masterstroke_Sweep_task.json#L33-L107)
+Princess-connection-farm 用不同的页面和按钮状态识别礼物与任务奖励，也处理礼物上限。Rino 的主线扫荡有预设、次数、体力判断等分支。旧流程只尝试通用冒险入口和扫荡按钮，地下城支援及行会捐赠也未确认实际结果。Hub 内置礼物和任务奖励。公主连结国服 B 服可改用 pcr-script，它提供自带素材、日程表、任务与礼物领奖，并输出带核验字段的 JSON。日程表和其他消费项目按游戏与上游配置执行。[旧农场实现](https://github.com/SimonShi1994/Princess-connection-farm/blob/dc37848d2437ce66e92d9e82186beae13d679c08/automator_mixins/_routine.py#L235-L266) · [Rino 主线扫荡](https://github.com/miaoyu2233/Rino_PCRautomation/blob/4e3a3fc9bf7f1132804bd807bd467b484d841551/Resource/base/pipeline/masterstroke_Sweep_task.json#L33-L107) · [pcr-script 结果协议](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/runtime.py#L167-L211)
 
 ### 崩坏学园 2
 
@@ -38,8 +38,8 @@ Princess-connection-farm 用不同的页面和按钮状态识别礼物与任务�
 
 ### 明日方舟：终末地
 
-MaaEnd 将日常奖励拆成邮件、暂存区、活跃、通行证、活动等分支。原仓库已经要求确认页面和领空状态，但把各项都当作菜单直达。Hub 从邮箱进入暂存区，从行动手册进入日常活跃页，从通行证进入奖励页，并保留四号谷地模拟空间和简制手册当前条目的可选领奖。自动完成日常目标、协议空间战斗和基建仍需要专用流程。MaaEnd 使用的 MXU GUI 自动退出本身不提供任务成功退出码。[日常分支](https://github.com/MaaEnd/MaaEnd/blob/7179ee06b2aa05d6087821279d43810a7f9c4433/assets/resource/pipeline/DailyRewards.json#L2-L90) · [邮件与暂存区](https://github.com/MaaEnd/MaaEnd/blob/7179ee06b2aa05d6087821279d43810a7f9c4433/assets/resource/pipeline/DailyRewards/Emails.json#L192-L374) · [行动手册导航](https://github.com/MaaEnd/MaaEnd/blob/7179ee06b2aa05d6087821279d43810a7f9c4433/assets/resource/pipeline/Interface/SceneMenu.json#L165-L185) · [MXU 自动退出](https://github.com/MistEO/MXU/blob/2f309effe43bbf151ef71e10895d461eaaad9201/src/App.tsx#L1048-L1059)
+MaaEnd 将日常奖励拆成邮件、暂存区、活跃、通行证、活动等分支。原仓库已经要求确认页面和领空状态，但把各项都当作菜单直达。Hub 从邮箱进入暂存区，从行动手册进入日常活跃页，从通行证进入奖励页，并保留四号谷地模拟空间和简制手册当前条目的可选领奖。协议空间与基建可在 MaaEnd 的独立 MFW 托管中选配。Hub 核对 MaaEnd 项目来源，读取 AUTO-MAS 的运行 ID 和最终账号完成报告。[日常分支](https://github.com/MaaEnd/MaaEnd/blob/7179ee06b2aa05d6087821279d43810a7f9c4433/assets/resource/pipeline/DailyRewards.json#L2-L90) · [邮件与暂存区](https://github.com/MaaEnd/MaaEnd/blob/7179ee06b2aa05d6087821279d43810a7f9c4433/assets/resource/pipeline/DailyRewards/Emails.json#L192-L374) · [行动手册导航](https://github.com/MaaEnd/MaaEnd/blob/7179ee06b2aa05d6087821279d43810a7f9c4433/assets/resource/pipeline/Interface/SceneMenu.json#L165-L185) · [AUTO-MAS 任务接口](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/docs/testing/e2e.md#后端公开契约)
 
 ## 验证范围
 
-仓库没有这七款游戏当前版本的实机截图模板。内置流程需要按客户端版本、区服、语言和画面尺寸采集标注，确认可领取、领完与页面退出三种状态后再加入队列。逻辑测试覆盖状态转换、失败结果和本地调度，Windows 上的截图、点击和客户端行为需要实机验证。外部后端需独立安装并按目标客户端配置。[Windows 命令手册](windows.md) · [模板素材说明](../assets/README.md)
+上游后端需要独立安装和首次配置，可直接使用上游提供的素材。内置路线需要采集本机模板。自动化测试覆盖托管身份校验、终态结果处理与队列调度。Windows 上的截图、点击及奖励到账仍需实机验证。[Windows 命令手册](windows.md) · [模板素材说明](../assets/README.md)

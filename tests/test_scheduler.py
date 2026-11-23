@@ -34,6 +34,34 @@ class TestScheduler(unittest.TestCase):
         ):
             run_queue(hub, hub.order)
 
+    def test_pcr_queue_runs_upstream_without_hub_templates(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            project = Path(tmp)
+            (project / "pcrscript").mkdir()
+            (project / "pcrscript" / "runtime.py").touch()
+            (project / "images").mkdir()
+            (project / "images" / "btn_ok.png").touch()
+            config = project / "custom.yaml"
+            config.write_text(
+                "Extra:\n  adb_path: " + json.dumps(sys.executable) + "\nTask: {1: [[schedule]]}\n",
+                encoding="utf-8",
+            )
+            (project / "daily_task.py").write_text(
+                "import json, sys\n"
+                "from pathlib import Path\n"
+                "assert sys.argv[1] == '--config' and Path(sys.argv[2]).name == 'custom.yaml'\n"
+                "print(json.dumps({'status': 'complete', 'verified': True, "
+                "'tasks': [{'task': 'schedule', 'status': 'already_complete'}]}, indent=2))\n",
+                encoding="utf-8",
+            )
+            game = GameConfig("公主连结", True, "pcr_script", 10, {
+                "project_dir": str(project),
+                "executable": sys.executable,
+                "pcr_config": str(config),
+            })
+            hub = HubConfig({"pcr": game}, ("pcr",))
+            self.assertTrue(run_queue(hub, hub.order))
+
     def test_native_worker_gets_snapshot_and_nonzero_is_failure(self):
         observed = {}
 

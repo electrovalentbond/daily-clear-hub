@@ -7,8 +7,9 @@ from pathlib import Path
 
 import yaml
 
-from core.config_loader import DEFAULT_LOCAL_CONFIG_PATH, PROJECT_ROOT, load_hub_config
-from core.scheduler import RunAborted, check_game, run_lock, run_queue
+from core.config_loader import DEFAULT_LOCAL_CONFIG_PATH, PROJECT_ROOT, UPSTREAM_BACKENDS, load_hub_config
+from core.errors import RunAborted
+from core.scheduler import check_game, run_lock, run_queue
 from games.registry import load_flow
 
 
@@ -18,7 +19,7 @@ def main(argv: list[str] | None = None) -> int:
     commands = parser.add_subparsers(dest="command", required=True)
     for command, help_text in (
         ("plan", "查看游戏和步骤，不连接游戏"),
-        ("check", "检查已选游戏的本机配置与素材"),
+        ("check", "检查已选游戏的配置、素材或上游连接"),
         ("run", "按顺序执行日常"),
     ):
         subparser = commands.add_parser(command, help=help_text)
@@ -42,6 +43,8 @@ def main(argv: list[str] | None = None) -> int:
                 status = "已启用" if game.enabled else "未启用"
                 print(f"[{game_id}] {game.name} · {status} · {game.backend}")
                 if game.backend == "native":
+                    if alternatives := UPSTREAM_BACKENDS.get(game_id):
+                        print(f"  免标注后端 {'、'.join(alternatives)}")
                     flow = load_flow(game_id)
                     chosen = flow.select(game.steps())
                     for page in chosen:
@@ -64,7 +67,7 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"[{game_id}] {exc}", file=sys.stderr)
                     success = False
                 else:
-                    print(f"[{game_id}] 静态配置检查通过")
+                    print(f"[{game_id}] 配置检查通过")
             return 0 if success else 1
         if os.name != "nt":
             raise ValueError("运行与截图诊断需要 Windows")

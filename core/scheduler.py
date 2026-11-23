@@ -11,10 +11,19 @@ from dataclasses import asdict
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from core.config_loader import PROJECT_ROOT, GameConfig, HubConfig
+from core.automas_backend import check_automas, run_automas
+from core.config_loader import PROJECT_ROOT, UPSTREAM_BACKENDS, GameConfig, HubConfig
+from core.errors import RunAborted
+from core.hka_backend import check_hka, run_hka
+from core.pcr_backend import check_pcr, run_pcr
 from core.templates import check_templates
 from games.registry import load_flow
 from src.config import resolution_for, target_for
+
+_COMMAND_BACKENDS = {
+    "hka": (check_hka, run_hka),
+    "pcr_script": (check_pcr, run_pcr),
+}
 
 
 def executable_for(game: GameConfig) -> Path:
@@ -25,28 +34,24 @@ def executable_for(game: GameConfig) -> Path:
 
 
 def check_game(game_id: str, game: GameConfig) -> None:
+    if game.backend != "native" and game.backend not in UPSTREAM_BACKENDS.get(game_id, ()):
+        raise ValueError(f"{game.backend} 后端不适用于 {game_id}")
     if game.backend == "march7th":
-        if game_id != "starrail":
-            raise ValueError("march7th 后端仅支持 starrail")
         if executable_for(game).name.casefold() != "m7a.exe":
             raise ValueError("请将 executable 指向三月七小助手的 m7a.exe")
         return
-    if game.backend == "hka":
-        if game_id != "bhxy2":
-            raise ValueError("hka 后端仅支持 bhxy2")
-        from core.hka_backend import check_hka
-
-        check_hka(game)
+    if game.backend == "automas":
+        check_automas(game_id, game)
+        return
+    if game.backend in _COMMAND_BACKENDS:
+        check, _ = _COMMAND_BACKENDS[game.backend]
+        check(game)
         return
     flow = load_flow(game_id)
     pages = flow.select(game.steps())
     target_for(game)
     resolution_for(game)
     check_templates(game.path("templates"), flow.required_features(pages))
-
-
-class RunAborted(RuntimeError):
-    """停止队列，因为子进程的退出状态无法确认。"""
 
 
 @contextmanager
@@ -130,14 +135,15 @@ def run_queue(hub: HubConfig, game_ids: tuple[str, ...]) -> bool:
             check_game(game_id, game)
             if game.backend == "march7th":
                 _run_march7th(game)
-            elif game.backend == "hka":
-                from core.hka_backend import run_hka
-
-                run_hka(game, run_command)
+            elif game.backend == "automas":
+                run_automas(game_id, game)
+            elif game.backend in _COMMAND_BACKENDS:
+                _, run = _COMMAND_BACKENDS[game.backend]
+                run(game, run_command)
             else:
                 _run_native(game_id, game)
             print(f"[{game_id}] 完成", flush=True)
-        except subprocess.TimeoutExpired:
+        except (subprocess.TimeoutExpired, TimeoutError):
             if game.backend != "native":
                 raise RunAborted(f"[{game_id}] 超过 {game.timeout} 秒，队列已停止。请确认上游任务结束后再运行") from None
             print(f"[{game_id}] 超过 {game.timeout} 秒，已终止任务进程", file=sys.stderr, flush=True)

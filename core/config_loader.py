@@ -9,6 +9,21 @@ import yaml
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.yaml"
 DEFAULT_LOCAL_CONFIG_PATH = PROJECT_ROOT / "config.local.yaml"
+UPSTREAM_BACKENDS = {
+    "honkai3": ("automas",),
+    "starrail": ("march7th",),
+    "zzz": ("automas",),
+    "genshin": ("automas",),
+    "pcr": ("pcr_script",),
+    "bhxy2": ("hka",),
+    "endfield": ("automas",),
+}
+BACKEND_OPTIONS = {
+    "automas": {"automas_port", "script_id", "user_id"},
+    "march7th": {"executable"},
+    "pcr_script": {"executable", "project_dir", "pcr_config"},
+    "hka": {"executable", "project_dir", "hka_config"},
+}
 
 
 @dataclass(frozen=True)
@@ -81,17 +96,19 @@ def load_hub_config(local_config_path: Path = DEFAULT_LOCAL_CONFIG_PATH) -> HubC
         override = game_overrides.get(game_id, {})
         if not isinstance(override, dict) or not all(isinstance(key, str) for key in override):
             raise ValueError(f"games.{game_id} 须为 YAML 映射")
-        extra = override.keys() - config.keys() - {"interaction", "executable", "hka_config", "project_dir"}
-        if extra:
-            raise ValueError(f"games.{game_id} 有未知配置项：{', '.join(sorted(extra))}")
         options = {**config, **override}
         enabled = options.pop("enabled")
         backend = options.pop("backend")
         timeout = options.pop("timeout_sec")
+        available_backends = ("native", *UPSTREAM_BACKENDS.get(game_id, ()))
+        if not isinstance(backend, str) or backend not in available_backends:
+            raise ValueError(f"games.{game_id}.backend 应为 {'、'.join(available_backends)}")
+        fields = BACKEND_OPTIONS.get(backend, set())
+        extra = override.keys() - config.keys() - fields - {"interaction"}
+        if extra:
+            raise ValueError(f"games.{game_id} 有未知配置项：{', '.join(sorted(extra))}")
         if type(enabled) is not bool:
             raise ValueError(f"games.{game_id}.enabled 应为 true 或 false")
-        if not isinstance(backend, str) or backend not in ("native", "march7th", "hka"):
-            raise ValueError(f"games.{game_id}.backend 未知：{backend}")
         if type(timeout) is not int or timeout <= 0:
             raise ValueError(f"games.{game_id}.timeout_sec 应为正整数")
         games[game_id] = GameConfig(options.pop("name"), enabled, backend, timeout, options)

@@ -1,10 +1,10 @@
 # Windows 安装与运行
 
-本指南使用 Windows 10/11 x64 和 PowerShell。请先安装、更新需要运行的游戏并完成登录。原生日常流程需要按本机游戏版本、语言和分辨率采集模板，首次运行前请逐款检查和联调。星铁可选三月七小助手，崩坏学园2可选 HKA 执行上游日常。
+本指南使用 Windows 10/11 x64 和 PowerShell。游戏先安装并登录。各游戏的上游后端使用项目自带的识别素材，只需安装相应工具并配置游戏、设备与任务。选择内置 ok-script 流程时，可按本文的可选章节采集本机模板。
 
 ## 1. 安装系统依赖
 
-在 PowerShell 中运行。Python 使用 3.12 x64，与仓库锁定的 `ok-script` 版本匹配。[WinGet 安装说明](https://learn.microsoft.com/zh-cn/windows/package-manager/winget/) · [ok-script 发行包](https://pypi.org/project/ok-script/1.0.154/)
+在 PowerShell 中运行。Hub 使用 Python 3.12 x64。[WinGet 安装说明](https://learn.microsoft.com/zh-cn/windows/package-manager/winget/) · [ok-script 发行包](https://pypi.org/project/ok-script/1.0.154/)
 
 ```powershell
 winget --version
@@ -32,12 +32,12 @@ git clone https://github.com/electrovalentbond/daily-clear-hub.git
 Set-Location .\daily-clear-hub
 py -3.12 -m venv .venv
 & .\.venv\Scripts\python.exe -m pip install --upgrade pip
-& .\.venv\Scripts\python.exe -m pip install -r .\requirements.txt
+& .\.venv\Scripts\python.exe -m pip install 'PyYAML==6.0.3'
 & .\.venv\Scripts\python.exe -m pip check
 & .\.venv\Scripts\python.exe -m unittest discover -s tests -p 'test_*.py' -v
 ```
 
-直接调用虚拟环境的 `python.exe` 即可。单元测试检查配置、调度和流程逻辑，实机识别与输入在后续步骤检查。
+直接调用虚拟环境的 `python.exe` 即可。上游后端只额外要求各自的运行环境。单元测试检查配置、调度和结果解析，首次运行时逐款检查实际游戏操作。
 
 ## 3. 建立本机配置
 
@@ -49,79 +49,21 @@ notepad .\config.local.yaml
 & .\.venv\Scripts\python.exe .\main.py plan
 ```
 
-`config.yaml` 提供默认设置，`config.local.yaml` 覆盖本机设置。`plan` 会列出游戏 ID 与可用步骤，勾号标出当前选中的步骤。游戏默认关闭。`enabled: true` 把对应游戏加入队列，`schedule_order` 指定队列顺序，`timeout_sec` 设定单款游戏的运行上限。先挑一款游戏和一个步骤完成联调，再增加其他游戏和步骤。
+`config.yaml` 提供默认设置，`config.local.yaml` 覆盖本机设置。示例为七款游戏选好了上游后端，替换路径和托管 ID 后即可逐款检查。已有配置可按各游戏的示例合并。`plan` 显示游戏 ID 和当前后端。游戏默认关闭，`enabled: true` 将游戏加入队列。`schedule_order` 指定顺序，`timeout_sec` 指定单款游戏的等待上限。
 
-### 原生 Windows 游戏
+### 崩坏3与终末地使用 AUTO-MAS
 
-崩坏3 `honkai3`、崩坏：星穹铁道 `starrail`、绝区零 `zzz`、原神 `genshin` 和明日方舟：终末地 `endfield` 使用 Windows 窗口。通过游戏的官方客户端手动启动，登录到可操作的主界面。建议使用窗口模式，游戏分辨率要与配置及模板一致，默认 1920×1080。用以下命令按窗口名称查找游戏进程。
+以 AUTO-MAS 运行 Maa_bbb 和 MaaEnd，两个游戏各自使用独立脚本配置与上游资源。先按 [AUTO-MAS 安装与任务配置](maa-upstream.md) 配好脚本 ID，再写入 `config.local.yaml`。
 
-```powershell
-Get-Process |
-    Where-Object { $_.MainWindowHandle -ne 0 } |
-    Select-Object ProcessName, Id, MainWindowTitle
-```
+### 原神使用 BetterGI，绝区零使用一条龙
 
-配置中的 `exe` 为带 `.exe` 扩展名的游戏进程名。启动器和游戏窗口通常属于不同进程，按上面输出的窗口标题确认。游戏以管理员身份运行时，用同样权限打开 PowerShell，再切回仓库根目录。`templates` 可使用相对于仓库根目录的路径。`steps` 填写 `plan` 提供的步骤 ID，配置后会替换该游戏的默认步骤。以下覆盖配置只选崩坏3的邮件领奖。[ok-script 连接与截图说明](https://github.com/ok-oldking/ok-script/blob/master/docs/interface.md)
+沿用上节安装的 AUTO-MAS。原神运行指定的 BetterGI 一条龙配置，绝区零运行对应实例下选中的一条龙任务。下载、安装、配置和检查命令见 [BetterGI 与绝区零一条龙配置](hoyo-upstream.md)。
 
-```yaml
-games:
-  honkai3:
-    exe: BH3.exe
-    resolution: [1920, 1080]
-    templates: assets/local/honkai3/coco_annotations.json
-    steps: [bh3_claim_mail]
-```
+### 公主连结国服使用 pcr-script
 
-### 雷电模拟器游戏
+B 服的上游识别素材随源码提供。先设置雷电为 960×540 横屏，再按 [公主连结上游安装命令](pcr-upstream.md) 配置 Python、ADB 序列号及游戏内日程表。
 
-原生公主连结 `pcr`、崩坏学园2 `bhxy2` 使用 ADB。安装雷电 9，在模拟器内安装并登录对应渠道的游戏。在模拟器的设置页开启本地 ADB 调试，按提示重启实例。仅配 Windows 游戏或使用 HKA 上游时，可以跳过雷电安装。[雷电模拟器官网](https://www.ldmnq.com/) · [雷电 ADB 指南](https://jp.ldplayer.net/support/ldplayer-adb-command.html)
-
-将 `$LdPlayerRoot` 改成实际安装目录。已打开模拟器时可直接查询设备。[雷电命令行指南](https://jp.ldplayer.net/support/ldconsole-command-line-guide.html)
-
-```powershell
-$LdPlayerRoot = 'C:\leidian\LDPlayer9'
-$Adb = Join-Path $LdPlayerRoot 'adb.exe'
-$LdConsole = Join-Path $LdPlayerRoot 'ldconsole.exe'
-Test-Path $Adb
-Test-Path $LdConsole
-& $LdConsole list2
-& $LdConsole launch --index 0
-& $Adb devices -l
-```
-
-等待实例启动完成，只保留一个状态为 `device` 的 ADB 设备。下例的 `emulator-5554` 仅供参考。启动目标游戏后核对包名和实际显示尺寸。[ADB 命令说明](https://developer.android.com/tools/adb?hl=zh-cn)
-
-```powershell
-$Serial = 'emulator-5554'
-& $Adb -s $Serial shell pm list packages -3
-& $Adb -s $Serial shell dumpsys activity activities |
-    Select-String 'topResumedActivity|mResumedActivity'
-& $Adb -s $Serial shell wm size
-& $Adb -s $Serial shell wm density
-```
-
-把序列号填入 `adb_serial`，`package:` 后面的包名填入 `package`，`resolution` 填 `[宽, 高]`。公主连结 B 服示例包名为 `com.bilibili.priconne`。崩坏学园2按所安装的渠道填写。两款游戏默认都使用 1280×720 横屏。可在雷电显示设置中设定相同尺寸，也可用下面的命令修改并重启实例。
-
-```powershell
-& $LdConsole quit --index 0
-& $LdConsole modify --index 0 --resolution '1280,720,240'
-& $LdConsole launch --index 0
-& $Adb devices -l
-```
-
-重启后重新确认序列号，并打开游戏回到主界面。将以下公主连结配置写入 `config.local.yaml` 的 `games` 下，并换成实际序列号。
-
-```yaml
-games:
-  pcr:
-    adb_serial: 'emulator-5554'
-    package: com.bilibili.priconne
-    resolution: [1280, 720]
-    templates: assets/local/pcr/coco_annotations.json
-    steps: [pcr_collect_gifts]
-```
-
-### 星铁可选三月七小助手
+### 星铁使用三月七小助手
 
 如果使用星铁的 `march7th` 后端，现有的小助手安装目录里需有 `m7a.exe`。全新安装可以用下面的命令下载正式版并解压到用户目录。已有安装时直接复用其路径。[官方发行页](https://github.com/moesnow/March7thAssistant/releases/latest) · [安装与校验说明](https://github.com/moesnow/March7thAssistant/blob/v2026.11.22/assets/agent/skills/march7th-assistant/references/install.md)
 
@@ -172,7 +114,7 @@ Hub 用 `routine --non-interactive --after-finish None` 执行三月七小助手
 & .\.venv\Scripts\python.exe .\main.py run starrail
 ```
 
-### 崩坏学园2可选 HKA
+### 崩坏学园2使用 HKA
 
 HKA 的上游适配基准为 Windows、MuMu、B 服、1600×900 横屏。启动并登录模拟器里的游戏，开启该实例的 ADB 调试。以下命令将已核对接口的 HKA 源码安装在独立的虚拟环境中。[HKA 快速开始与适配范围](https://github.com/lolineet/Honkai2Automation/blob/08052330d5294b53b5578416fbbd97c8aca3b180/README.md)
 
@@ -220,7 +162,86 @@ games:
 & .\.venv\Scripts\python.exe .\main.py run bhxy2
 ```
 
-## 4. 检查与首次联调
+## 4. 可选的内置 ok-script 流程
+
+此节适用于选择 `backend: native` 的游戏。先在 Hub 环境安装 Windows 依赖。
+
+```powershell
+& .\.venv\Scripts\python.exe -m pip install -r .\requirements.txt
+& .\.venv\Scripts\python.exe -m pip check
+```
+
+### 原生 Windows 游戏
+
+崩坏3 `honkai3`、崩坏：星穹铁道 `starrail`、绝区零 `zzz`、原神 `genshin` 和明日方舟：终末地 `endfield` 使用 Windows 窗口。通过游戏的官方客户端手动启动，登录到可操作的主界面。建议使用窗口模式，游戏分辨率要与配置及模板一致，默认 1920×1080。用以下命令按窗口名称查找游戏进程。
+
+```powershell
+Get-Process |
+    Where-Object { $_.MainWindowHandle -ne 0 } |
+    Select-Object ProcessName, Id, MainWindowTitle
+```
+
+配置中的 `exe` 为带 `.exe` 扩展名的游戏进程名。启动器和游戏窗口通常属于不同进程，按上面输出的窗口标题确认。游戏以管理员身份运行时，用同样权限打开 PowerShell，再切回仓库根目录。`templates` 可使用相对于仓库根目录的路径。`steps` 填写 `plan` 提供的步骤 ID，配置后会替换该游戏的默认步骤。以下覆盖配置只选崩坏3的邮件领奖。[ok-script 连接与截图说明](https://github.com/ok-oldking/ok-script/blob/master/docs/interface.md)
+
+```yaml
+games:
+  honkai3:
+    backend: native
+    exe: BH3.exe
+    resolution: [1920, 1080]
+    templates: assets/local/honkai3/coco_annotations.json
+    steps: [bh3_claim_mail]
+```
+
+### 雷电模拟器游戏
+
+原生公主连结 `pcr`、崩坏学园2 `bhxy2` 使用 ADB。安装雷电 9，在模拟器内安装并登录对应渠道的游戏。在模拟器的设置页开启本地 ADB 调试，按提示重启实例。仅配 Windows 游戏或使用 HKA 上游时，可以跳过雷电安装。[雷电模拟器官网](https://www.ldmnq.com/) · [雷电 ADB 指南](https://jp.ldplayer.net/support/ldplayer-adb-command.html)
+
+将 `$LdPlayerRoot` 改成实际安装目录。已打开模拟器时可直接查询设备。[雷电命令行指南](https://jp.ldplayer.net/support/ldconsole-command-line-guide.html)
+
+```powershell
+$LdPlayerRoot = 'C:\leidian\LDPlayer9'
+$Adb = Join-Path $LdPlayerRoot 'adb.exe'
+$LdConsole = Join-Path $LdPlayerRoot 'ldconsole.exe'
+Test-Path $Adb
+Test-Path $LdConsole
+& $LdConsole list2
+& $LdConsole launch --index 0
+& $Adb devices -l
+```
+
+等待实例启动完成，只保留一个状态为 `device` 的 ADB 设备。下例的 `emulator-5554` 仅供参考。启动目标游戏后核对包名和实际显示尺寸。[ADB 命令说明](https://developer.android.com/tools/adb?hl=zh-cn)
+
+```powershell
+$Serial = 'emulator-5554'
+& $Adb -s $Serial shell pm list packages -3
+& $Adb -s $Serial shell dumpsys activity activities |
+    Select-String 'topResumedActivity|mResumedActivity'
+& $Adb -s $Serial shell wm size
+& $Adb -s $Serial shell wm density
+```
+
+把序列号填入 `adb_serial`，`package:` 后面的包名填入 `package`，`resolution` 填 `[宽, 高]`。公主连结 B 服示例包名为 `com.bilibili.priconne`。崩坏学园2按所安装的渠道填写。两款游戏默认都使用 1280×720 横屏。可在雷电显示设置中设定相同尺寸，也可用下面的命令修改并重启实例。
+
+```powershell
+& $LdConsole quit --index 0
+& $LdConsole modify --index 0 --resolution '1280,720,240'
+& $LdConsole launch --index 0
+& $Adb devices -l
+```
+
+重启后重新确认序列号，并打开游戏回到主界面。将以下公主连结配置写入 `config.local.yaml` 的 `games` 下，并换成实际序列号。
+
+```yaml
+games:
+  pcr:
+    backend: native
+    adb_serial: 'emulator-5554'
+    package: com.bilibili.priconne
+    resolution: [1280, 720]
+    templates: assets/local/pcr/coco_annotations.json
+    steps: [pcr_collect_gifts]
+```
 
 原生模式处理已满足条件的领奖步骤。首次可用锁定版本自带的模板页采集并标注，以崩坏3为例先列出所选步骤需要的名称，再打开诊断窗口。每次换服、切换语言、改分辨率或游戏更新后，重新确认识别结果。[模板素材说明](../assets/README.md) · [ok-script 界面与开发工具](https://github.com/ok-oldking/ok-script/blob/master/docs/interface.md#模板素材管理)
 
@@ -251,7 +272,7 @@ $LASTEXITCODE
 
 ## 5. 执行日常队列
 
-准备好各款游戏的窗口或模拟器实例，在本机配置开启已联调通过的游戏。星铁内置邮件以已打开的触屏布局手机菜单为起点，绝区零内置邮件以已打开的游戏菜单为起点。原神及终末地从可操作的大世界画面开始，保留所选流程的默认游戏快捷键。以下命令按配置顺序运行队列。
+按各后端的说明准备游戏、模拟器或上游工具，在本机配置开启已联调通过的游戏。AUTO-MAS 后端需要对应服务在本机运行。星铁内置邮件以已打开的触屏布局手机菜单为起点，绝区零内置邮件以已打开的游戏菜单为起点。原神及终末地从可操作的大世界画面开始，保留所选流程的默认游戏快捷键。以下命令按配置顺序运行队列。
 
 ```powershell
 & .\.venv\Scripts\python.exe .\main.py check
@@ -281,12 +302,12 @@ $LASTEXITCODE
 
 ## 6. 更新及排查
 
-以下命令更新代码与依赖并重新检查启用的游戏。
+以下命令更新 Hub 并重新检查启用的游戏。若使用内置模式，另按第 4 节更新 `requirements.txt`。上游工具单独更新，优先使用相应配置指南中核对过的版本。
 
 ```powershell
 Set-Location (Join-Path $env:USERPROFILE 'daily-clear-hub')
 git pull --ff-only
-& .\.venv\Scripts\python.exe -m pip install -r .\requirements.txt
+& .\.venv\Scripts\python.exe -m pip install 'PyYAML==6.0.3'
 & .\.venv\Scripts\python.exe -m pip check
 & .\.venv\Scripts\python.exe .\main.py check
 ```

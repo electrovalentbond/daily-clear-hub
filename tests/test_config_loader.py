@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core.config_loader import load_hub_config
+from core.config_loader import PROJECT_ROOT, UPSTREAM_BACKENDS, load_hub_config
 from games.registry import load_flow
 from src.config import make_profile
 
@@ -45,11 +45,19 @@ class TestConfigLoader(unittest.TestCase):
             "games: {no_game: {enabled: true}}",
             "games: {pcr: {enabled: 'false'}}",
             "games: {pcr: {timeout_sec: -5}}",
+            "games: {pcr: {backend: automas}}",
             "schedule_order: [pcr, pcr]",
         )
         for example in invalid:
             with self.subTest(example=example), self.assertRaises(ValueError):
                 self.load_override(example)
+
+    def test_example_selects_upstream_for_every_game(self):
+        hub = load_hub_config(PROJECT_ROOT / "config.local.yaml.example")
+        self.assertEqual(set(hub.games), set(UPSTREAM_BACKENDS))
+        self.assertEqual((), hub.select([]))
+        for game_id, game in hub.games.items():
+            self.assertIn(game.backend, UPSTREAM_BACKENDS[game_id])
 
     def test_profiles_do_not_mix_capture_targets(self):
         hub = self.load_override("games: {pcr: {adb_serial: '127.0.0.1:5555'}}")
