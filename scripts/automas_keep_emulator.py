@@ -22,18 +22,46 @@ _ADB_SERIAL = re.compile(r"(emulator-|127\.0\.0\.1:|localhost:)([0-9]{1,5})")
 _TRACK_COMMAND = "track-devices"
 
 
-def _adb_output(adb: Path, *args: str) -> bytes:
+def _program_output(program: Path, *args: str) -> bytes:
     return subprocess.run(
-        [str(adb), *args],
+        [str(program), *args],
+        stdin=subprocess.DEVNULL,
         capture_output=True,
         check=True,
         timeout=15,
     ).stdout
 
 
+def _ldplayer_addresses(adb: Path, indexes: list[int]) -> list[str]:
+    ports = {str(index): 5555 + 2 * index for index in indexes}
+    if any(not 5555 <= port <= 65535 for port in ports.values()):
+        raise ValueError("雷电实例编号超出默认 ADB 端口范围")
+    consoles = [adb.with_name(name) for name in ("ldconsole.exe", "dnconsole.exe")]
+    console = next((path for path in consoles if path.is_file()), None)
+    if console is None:
+        raise ValueError("找不到雷电控制台，请用 --adb 指定雷电安装目录里的 adb.exe")
+    try:
+        instances = _program_output(console, "list2").decode(errors="replace")
+    except subprocess.CalledProcessError as exc:
+        raise ValueError(f"无法用 {console.name} list2 读取雷电实例（退出码 {exc.returncode}）") from exc
+    states = {}
+    for line in instances.splitlines():
+        index, _, info = line.partition(",")
+        fields = info.rsplit(",", 8)
+        if len(fields) == 9:
+            # list2: index, title, hwnd, bind hwnd, in_android, pid, VBox pid, width, height, DPI.
+            states[index.strip()] = fields[3].strip()
+    for index in ports:
+        if index not in states:
+            raise ValueError(f"找不到雷电实例 {index}，请用 {console.name} list2 核对实际编号")
+        if states[index] != "1":
+            raise ValueError(f"请先打开雷电实例 {index} 并等待进入 Android 桌面")
+    return [f"127.0.0.1:{port}" for port in ports.values()]
+
+
 def _local_devices(adb: Path) -> dict[str, str]:
     devices = {}
-    for line in _adb_output(adb, "devices").decode(errors="replace").splitlines():
+    for line in _program_output(adb, "devices").decode(errors="replace").splitlines():
         fields = line.split()
         if len(fields) != 2:
             continue
@@ -45,12 +73,21 @@ def _local_devices(adb: Path) -> dict[str, str]:
 
 def _connect_loopback(adb: Path, serial: str) -> str:
     try:
-        output = _adb_output(adb, "connect", serial)
+        output = _program_output(adb, "connect", serial)
     except subprocess.CalledProcessError as exc:
         output = exc.stderr or exc.output or b""
     except subprocess.TimeoutExpired:
         return "连接超时"
     return output.decode(errors="replace").strip()
+
+
+def _verify_loopback(adb: Path, address: str) -> None:
+    try:
+        state = _program_output(adb, "-s", address, "get-state").decode(errors="replace").strip()
+    except subprocess.CalledProcessError as exc:
+        state = (exc.stderr or exc.output or b"").decode(errors="replace").strip() or f"退出码 {exc.returncode}"
+    if state != "device":
+        raise ValueError(f"ADB 地址 {address} 未就绪（{state or '未返回状态'}），请确认实例已打开并启用 ADB 本地连接")
 
 
 def _select_serials(adb: Path, requested: list[str]) -> list[str]:
@@ -69,8 +106,9 @@ def _select_serials(adb: Path, requested: list[str]) -> list[str]:
         match = _ADB_SERIAL.fullmatch(serial)
         if not match or not 1 <= int(match[2]) <= 65535:
             raise ValueError(f"无效的本地模拟器地址 {serial}，请使用 adb devices 显示的序列号或已确认的本地端口")
+        is_loopback = match[1] != "emulator-"
         detail = ""
-        if match[1] != "emulator-" and devices.get(serial) in (None, "offline"):
+        if is_loopback and devices.get(serial) in (None, "offline"):
             # 显式指定端口才主动连接。AUTO-MAS 在运行时也会重连这个地址。
             detail = _connect_loopback(adb, serial)
             devices = _local_devices(adb)
@@ -79,6 +117,8 @@ def _select_serials(adb: Path, requested: list[str]) -> list[str]:
             hint = "请确认目标实例已进入 Android 桌面并启用 ADB 本地连接"
             extra = f"。ADB 连接结果：{detail}" if detail else ""
             raise ValueError(f"ADB 未连接所选的本地模拟器 {serial}（{state}），{hint}{extra}")
+        if is_loopback:
+            _verify_loopback(adb, serial)
     return serials
 
 
@@ -143,7 +183,7 @@ def _register(port: int, adb: Path, serial: str) -> None:
 
 
 def _screenshot(adb: Path, serial: str) -> str:
-    png = _adb_output(adb, "-s", serial, "exec-out", "screencap", "-p")
+    png = _program_output(adb, "-s", serial, "exec-out", "screencap", "-p")
     if not png.startswith(b"\x89PNG\r\n\x1a\n"):
         raise ValueError(f"ADB 未从 {serial} 返回有效的 PNG 截图")
     with tempfile.NamedTemporaryFile(prefix="daily-clear-hub-adb-", suffix=".png", delete=False) as image:
@@ -155,7 +195,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="在 AUTO-MAS 中连接已打开的雷电实例")
     parser.add_argument("action", choices=("register", "screenshot"))
     parser.add_argument("--adb", type=Path, required=True, help="雷电安装目录中的 adb.exe")
-    parser.add_argument(
+    target = parser.add_mutually_exclusive_group()
+    target.add_argument(
+        "--ld-index", action="append", default=[], type=int,
+        help="用雷电实例编号连接默认本机 ADB 端口；register 可重复指定",
+    )
+    target.add_argument(
         "--serial", action="append", default=[],
         help="指定 adb devices 显示的序列号或已确认的本地端口；register 可重复指定",
     )
@@ -166,9 +211,10 @@ def main() -> int:
         adb = args.adb.resolve()
         if not adb.is_file() or adb.name.casefold() != "adb.exe":
             raise ValueError("请用 --adb 指定雷电安装目录中的 adb.exe")
-        if args.action == "screenshot" and len(args.serial) > 1:
-            raise ValueError("screenshot 只接受一个 --serial")
-        serials = _select_serials(adb, args.serial)
+        if args.action == "screenshot" and max(len(args.serial), len(args.ld_index)) > 1:
+            raise ValueError("screenshot 只接受一个 --serial 或 --ld-index")
+        requested = _ldplayer_addresses(adb, args.ld_index) if args.ld_index else args.serial
+        serials = _select_serials(adb, requested)
         if args.action == "screenshot":
             print(_screenshot(adb, serials[0]))
         else:

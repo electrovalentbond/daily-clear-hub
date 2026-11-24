@@ -20,7 +20,7 @@ class KeepEmulatorTest(unittest.TestCase):
         root = self.enterContext(tempfile.TemporaryDirectory())
         self.adb = (Path(root) / "LDPlayer" / "adb.exe").resolve()
 
-    @patch.object(keep_emulator, "_adb_output")
+    @patch.object(keep_emulator, "_program_output")
     def test_selects_authorized_loopback_only(self, adb_output):
         adb_output.return_value = (
             b"List of devices attached\r\n"
@@ -35,30 +35,35 @@ class KeepEmulatorTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "emulator-5558（未出现在 adb devices 中）"):
             keep_emulator._select_serials(self.adb, ["emulator-5558"])
 
-    @patch.object(keep_emulator, "_adb_output")
+    @patch.object(keep_emulator, "_program_output")
     def test_multiple_devices_require_explicit_serial(self, adb_output):
-        adb_output.return_value = b"emulator-5554\tdevice\n127.0.0.1:5557\tdevice\n"
+        devices = b"emulator-5554\tdevice\n127.0.0.1:5557\tdevice\n"
+        adb_output.side_effect = [devices, devices, b"device\n"]
         with self.assertRaisesRegex(ValueError, "多个本地模拟器"):
             keep_emulator._select_serials(self.adb, [])
         serials = ["127.0.0.1:5557", SERIAL]
         self.assertEqual(keep_emulator._select_serials(self.adb, [*serials, SERIAL]), serials)
-        self.assertTrue(all(c == call(self.adb, "devices") for c in adb_output.call_args_list))
+        self.assertEqual(adb_output.call_args_list, [
+            call(self.adb, "devices"), call(self.adb, "devices"), call(self.adb, "-s", serials[0], "get-state"),
+        ])
 
-    @patch.object(keep_emulator, "_adb_output")
+    @patch.object(keep_emulator, "_program_output")
     def test_explicit_loopback_reconnects_only_requested_target(self, adb_output):
         endpoint = "127.0.0.1:5557"
         adb_output.side_effect = [
             b"emulator-5554\tdevice\n",
             b"connected to 127.0.0.1:5557\n",
             b"emulator-5554\tdevice\n127.0.0.1:5557\tdevice\n",
+            b"device\n",
         ]
 
         self.assertEqual(keep_emulator._select_serials(self.adb, [endpoint]), [endpoint])
         self.assertEqual(adb_output.call_args_list, [
             call(self.adb, "devices"), call(self.adb, "connect", endpoint), call(self.adb, "devices"),
+            call(self.adb, "-s", endpoint, "get-state"),
         ])
 
-    @patch.object(keep_emulator, "_adb_output")
+    @patch.object(keep_emulator, "_program_output")
     def test_only_online_loopback_is_accepted_even_when_connect_command_exits_cleanly(self, adb_output):
         endpoint = "127.0.0.1:5557"
         adb_output.side_effect = [b"", b"failed to connect: connection refused", b""]
@@ -72,7 +77,7 @@ class KeepEmulatorTest(unittest.TestCase):
             keep_emulator._select_serials(self.adb, ["192.168.1.5:5557"])
         adb_output.assert_called_once_with(self.adb, "devices")
 
-    @patch.object(keep_emulator, "_adb_output", return_value=b"emulator-5554\tdevice\nemulator-5556\tdevice\n")
+    @patch.object(keep_emulator, "_program_output", return_value=b"emulator-5554\tdevice\nemulator-5556\tdevice\n")
     @patch.object(keep_emulator, "_check_tracker")
     @patch.object(keep_emulator, "_register")
     def test_register_can_create_two_separately_named_bindings(self, register, check_tracker, _adb_output):
@@ -87,6 +92,58 @@ class KeepEmulatorTest(unittest.TestCase):
         check_tracker.assert_called_once_with(self.adb)
         self.assertIn("track-devices | emulator-5554", output.getvalue())
         self.assertIn("track-devices | emulator-5556", output.getvalue())
+
+    @patch.object(keep_emulator, "_program_output")
+    @patch.object(keep_emulator, "_check_tracker")
+    @patch.object(keep_emulator, "_register")
+    def test_ldplayer_index_registers_verified_tcp_even_when_the_serial_is_missing(self, register, tracker, output):
+        self.adb.parent.mkdir()
+        self.adb.touch()
+        console = self.adb.with_name("ldconsole.exe")
+        console.touch()
+        endpoint = "127.0.0.1:5555"
+        output.side_effect = [
+            b"0,LDPlayer, BH2,100,200,1,300,400,1280,720,240\r\n",
+            b"emulator-5556\tdevice\n",
+            b"connected to 127.0.0.1:5555\n",
+            b"emulator-5556\tdevice\n127.0.0.1:5555\tdevice\n",
+            b"device\n",
+        ]
+        with patch("sys.argv", ["automas_keep_emulator", "register", "--adb", str(self.adb), "--ld-index", "0"]):
+            with redirect_stdout(io.StringIO()) as registered:
+                self.assertEqual(keep_emulator.main(), 0)
+
+        self.assertEqual(output.call_args_list, [
+            call(console, "list2"), call(self.adb, "devices"), call(self.adb, "connect", endpoint),
+            call(self.adb, "devices"), call(self.adb, "-s", endpoint, "get-state"),
+        ])
+        register.assert_called_once_with(PORT, self.adb, endpoint)
+        tracker.assert_called_once_with(self.adb)
+        self.assertIn("track-devices | 127.0.0.1:5555", registered.getvalue())
+
+    @patch.object(keep_emulator, "_program_output", return_value=(
+        b"0,LDPlayer,100,200,0,-1,-1,1280,720,240\n"
+        b"1,LDPlayer-1,100,200,1,300,400,1280,720,240\n"
+    ))
+    def test_ldplayer_index_requires_the_selected_instance_to_be_running(self, output):
+        self.adb.parent.mkdir()
+        console = self.adb.with_name("dnconsole.exe")
+        console.touch()
+        self.assertEqual(keep_emulator._ldplayer_addresses(self.adb, [1, 1]), ["127.0.0.1:5557"])
+        with self.assertRaisesRegex(ValueError, "先打开雷电实例 0"):
+            keep_emulator._ldplayer_addresses(self.adb, [0, 1])
+        with self.assertRaisesRegex(ValueError, "找不到雷电实例 2"):
+            keep_emulator._ldplayer_addresses(self.adb, [2])
+        self.assertTrue(all(request == call(console, "list2") for request in output.call_args_list))
+
+    @patch.object(keep_emulator, "_program_output")
+    def test_loopback_is_rejected_if_the_runner_get_state_probe_fails(self, output):
+        endpoint = "127.0.0.1:5555"
+        output.side_effect = [b"127.0.0.1:5555\tdevice\n", subprocess.CalledProcessError(
+            1, [str(self.adb), "-s", endpoint, "get-state"], stderr=b"device not found",
+        )]
+        with self.assertRaisesRegex(ValueError, "127.0.0.1:5555 未就绪（device not found）"):
+            keep_emulator._select_serials(self.adb, [endpoint])
 
     @patch.object(keep_emulator.subprocess, "Popen")
     def test_only_adb_monitor_is_stopped_after_probe(self, popen):
