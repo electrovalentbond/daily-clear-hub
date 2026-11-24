@@ -5,11 +5,15 @@ from __future__ import annotations
 from pcrscript.game_ui.screen import EventUI, EventUIError
 from pcrscript.run_session import clock as time
 from pcrscript.tasks import BaseTask
+from pcrscript.templates import ImageTemplate
 
 
 HOME_ENTRY = (510, 398, 710, 478)
 ROOM_CONTENT = (25, 66, 935, 403)
 REWARD_PANEL = (270, 330, 690, 418)
+STORY_PROMPT = (205, 65, 755, 340)
+STORY_CONFIRM = (480, 300, 745, 500)
+SKIP_TEXT = r"剧情梗概|跳过(?:这个|这段|当前)?(?:剧情|对话|对白|视频)"
 
 
 def in_room(screen):
@@ -72,6 +76,54 @@ class ClaimAlchemyReward(BaseTask):
     def __init__(self, robot):
         super().__init__(robot)
         self.ui = EventUI(robot.driver, self.task_options().get("output", "cache/daily/alchemy_reward"))
+        self.story_skip = ImageTemplate("btn_skip", threshold=.86, roi=(850, 0, 950, 80))
+
+    def wait_through_story(self, predicate, description, *, timeout):
+        skip_requested = False
+        skip_confirmed = False
+
+        def ready(screen):
+            nonlocal skip_requested, skip_confirmed
+            if screen.find(SKIP_TEXT, STORY_PROMPT):
+                if not skip_confirmed and (button := screen.find("确定|确认|跳过", STORY_CONFIRM, exact=True)):
+                    self.ui.save("alchemy_story_confirm", screen)
+                    self.ui.click(button)
+                    skip_confirmed = True
+                return False
+            if screen.battle_dialogue():
+                if not skip_requested and not skip_confirmed and (button := self.story_skip.match(screen.image)):
+                    self.ui.save("alchemy_story_skip", screen)
+                    self.ui.click(button)
+                    skip_requested = True
+                return False
+            return predicate(screen)
+
+        return self.ui.wait(ready, description, timeout=timeout)
+
+    def find_dialogue_marker(self):
+        marker = None
+        deadline = None
+        empty_frames = 0
+
+        def ready(screen):
+            nonlocal marker, deadline, empty_frames
+            if reward_visible(screen):
+                return True
+            if not in_room(screen):
+                deadline = None
+                empty_frames = 0
+                return False
+            marker = dialogue_marker(screen.image)
+            if marker is not None:
+                return True
+            now = time.monotonic()
+            if deadline is None:
+                deadline = now + 7
+            empty_frames += 1
+            return empty_frames >= 2 and now >= deadline
+
+        screen = self.wait_through_story(ready, "识别炼金堂对话气泡", timeout=35)
+        return screen, marker
 
     def run(self):
         self.report_progress("寻找究极炼成入口")
@@ -84,33 +136,21 @@ class ClaimAlchemyReward(BaseTask):
                 self.ui.save("alchemy_entry_unavailable", screen)
                 return {"status": "unavailable", "reason": "首页未识别到究极炼成入口，请确认玩法已解锁"}
             self.ui.click(entry)
-            screen = self.ui.wait(in_room, "进入阿尔凯斯炼金堂", timeout=20)
 
         self.report_progress("检查炼金堂角色对话气泡")
-        deadline = time.monotonic() + 7
-        empty_frames = 0
-        while True:
-            if in_room(screen):
-                marker = dialogue_marker(screen.image)
-                if marker is not None:
-                    break
-                empty_frames += 1
-                if empty_frames >= 2 and time.monotonic() >= deadline:
-                    self.ui.save("alchemy_no_marker", screen)
-                    return {"status": "unavailable", "reason": "已进入炼金堂，未检测到可领取的对话气泡"}
-            else:
-                empty_frames = 0
-                if time.monotonic() >= deadline:
-                    raise EventUIError("无法确认炼金堂界面，请查看运行截图")
-            time.sleep(.45)
-            screen = self.ui.capture()
+        screen, marker = self.find_dialogue_marker()
+        if marker is None:
+            if reward_visible(screen):
+                self.ui.save("alchemy_reward", screen)
+                return {"status": "complete"}
+            self.ui.save("alchemy_no_marker", screen)
+            return {"status": "unavailable", "reason": "已进入炼金堂，未检测到可领取的对话气泡"}
 
         self.ui.save("alchemy_dialogue_marker", screen)
-        self.report_progress("观看炼金堂对话并核对领奖")
+        self.report_progress("领取炼金堂奖励并核对回执")
         self.ui.click(marker, delay=.35)
-        # The short dialogue plays within the room and the award appears in a toast.
         try:
-            receipt = self.ui.wait(reward_visible, "核对究极炼成对话奖励", timeout=100)
+            receipt = self.wait_through_story(reward_visible, "核对究极炼成对话奖励", timeout=100)
         except EventUIError as error:
             return {"status": "blocked", "reason": str(error)}
         self.ui.save("alchemy_reward", receipt)

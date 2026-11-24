@@ -357,9 +357,10 @@ class TestAlchemyReward(unittest.TestCase):
         pass
 
     class Screen:
-        def __init__(self, *items):
+        def __init__(self, *items, story=False):
             self.items = items
             self.image = object()
+            self.story = story
 
         def find(self, pattern, roi, exact=False):
             search = re.fullmatch if exact else re.search
@@ -367,50 +368,82 @@ class TestAlchemyReward(unittest.TestCase):
             return next(((x, y) for text, x, y in self.items
                          if left <= x <= right and top <= y <= bottom and search(pattern, text)), None)
 
+        def battle_dialogue(self):
+            return self.story
+
     def setUp(self):
         self.ui = Mock()
+        self.skip = Mock()
         self.enterContext(patch.dict(sys.modules, {
             "pcrscript.game_ui.screen": SimpleNamespace(EventUI=lambda *_: self.ui, EventUIError=self.UIError),
             "pcrscript.run_session": SimpleNamespace(clock=SimpleNamespace(monotonic=count(step=8).__next__, sleep=Mock())),
             "pcrscript.tasks": SimpleNamespace(BaseTask=MockTask),
+            "pcrscript.templates": SimpleNamespace(ImageTemplate=Mock(return_value=self.skip)),
         }))
         self.alchemy = importlib.import_module("core.pcr_alchemy_reward")
         self.marker = self.enterContext(patch.object(self.alchemy, "dialogue_marker"))
         self.task = self.alchemy.ClaimAlchemyReward(SimpleNamespace(driver=object()))
         self.home = self.Screen(("我的主页", 80, 525), ("礼物", 910, 455), ("日程表", 765, 455), ("究极炼成", 616, 456))
         self.room = self.Screen(("究极炼成", 111, 32), ("相册", 614, 54), ("道具一览", 701, 53))
+        self.story = self.Screen(("彩羽", 282, 404), ("小露易～彩羽也想学炼金术！", 299, 433), story=True)
+        self.confirm = self.Screen(("是否跳过剧情？", 480, 235), ("取消", 362, 345), ("确定", 587, 345))
+        self.receipt = self.Screen(("获得了特别装备炼成Pt×1000", 483, 376))
+        self.skip.match.side_effect = lambda image: (901, 42) if image is self.story.image else None
+
+    def queue_waits(self, *stages):
+        stages = iter(stages)
+
+        def wait(predicate, description, *, timeout, handle=None):
+            for screen in next(stages):
+                if predicate(screen):
+                    return screen
+                if handle:
+                    handle(screen)
+            raise self.UIError(f"{description}超时")
+
+        self.ui.wait.side_effect = wait
 
     def test_claim_clicks_marker_once_and_requires_the_reward_toast(self):
         self.marker.return_value = (825, 172)
-        receipt = self.Screen(("获得了特别装备炼成Pt×1000", 483, 376))
+        unrelated = self.Screen(("获得了体力", 483, 376))
+        self.queue_waits((self.home,), (self.room,), (self.room, unrelated, self.receipt))
 
-        def wait(predicate, description, *, timeout):
-            if description == "核对究极炼成对话奖励":
-                self.assertFalse(predicate(self.room))
-                self.assertFalse(predicate(self.Screen(("获得了体力", 483, 376))))
-                self.assertTrue(predicate(receipt))
-                return receipt
-            frame = self.home if description == "识别首页或炼金堂" else self.room
-            self.assertTrue(predicate(frame))
-            return frame
-
-        self.ui.wait.side_effect = wait
         self.assertEqual(self.task.run(), {"status": "complete"})
         self.assertEqual([action.args[0] for action in self.ui.click.call_args_list], [(616, 456), (825, 172)])
 
     def test_no_dialogue_continues_without_clicking_anything_in_the_room(self):
-        self.ui.wait.return_value = self.room
-        self.ui.capture.return_value = self.room
+        self.queue_waits((self.room,), (self.room, self.room, self.room))
         self.marker.return_value = None
         report = self.task.run()
         self.assertEqual(report["status"], "unavailable")
         self.ui.click.assert_not_called()
 
     def test_missing_reward_receipt_does_not_resubmit_the_dialogue(self):
-        self.ui.wait.side_effect = [self.room, self.UIError("核对究极炼成对话奖励超时")]
+        self.queue_waits((self.room,), (self.room,), (self.room,))
         self.marker.return_value = (825, 172)
         self.assertEqual(self.task.run()["status"], "blocked")
         self.ui.click.assert_called_once_with((825, 172), delay=.35)
+
+    def test_skips_dialogue_after_marker_and_waits_for_reward(self):
+        self.marker.return_value = (825, 172)
+        unrelated = self.Screen(("确定炼成结果？", 480, 235), ("取消", 362, 345), ("确定", 587, 345))
+        self.queue_waits(
+            (self.room,), (self.room,),
+            (self.story, self.story, unrelated, self.confirm, self.confirm, self.room, self.receipt),
+        )
+
+        self.assertEqual(self.task.run(), {"status": "complete"})
+        self.assertEqual([action.args[0] for action in self.ui.click.call_args_list],
+                         [(825, 172), (901, 42), (587, 345)])
+
+    def test_entry_story_can_award_reward_without_clicking_another_marker(self):
+        self.queue_waits((self.home,), (self.story, self.confirm, self.receipt))
+        self.marker.return_value = (825, 172)
+
+        self.assertEqual(self.task.run(), {"status": "complete"})
+        self.assertEqual([action.args[0] for action in self.ui.click.call_args_list],
+                         [(616, 456), (901, 42), (587, 345)])
+        self.marker.assert_not_called()
 
 
 class MockTask:
