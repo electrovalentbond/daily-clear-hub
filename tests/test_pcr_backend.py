@@ -1,10 +1,13 @@
+import importlib
 import io
 import json
+import re
 import subprocess
 import sys
 import unittest
 from contextlib import contextmanager, nullcontext, redirect_stdout
 from dataclasses import replace
+from itertools import count
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from types import SimpleNamespace
@@ -215,6 +218,38 @@ class TestPCRIndividualJob(unittest.TestCase):
         with self.assertRaisesRegex(self.EventUIError, "模拟器截图失败"):
             pcr_automas_job.restore_schedule_counter(task, latest)
 
+    def test_registers_the_alchemy_task_in_the_individual_worker(self):
+        class ADBDriver:
+            adb_path = "adb.exe"
+            device_name = "emulator-5556"
+
+        task_name = "claim_alchemy_reward"
+        task_class = type("ClaimAlchemyReward", (), {})
+        registered = {}
+
+        def register(name, *, requires_home):
+            self.assertTrue(requires_home)
+            return lambda cls: registered.setdefault(name, cls)
+
+        report = {"status": "complete", "verified": True, "tasks": [{"task": task_name, "status": "complete"}]}
+        runtime = SimpleNamespace(
+            load_config=Mock(return_value={"Task": {1: [[task_name]]}, "Extra": {"adb_serial": "emulator-5556"}}),
+            print_report=Mock(), run_script=Mock(return_value=report), select_driver=Mock(return_value=ADBDriver()),
+            summarize_daily=Mock(),
+        )
+        modules = {
+            "core.pcr_alchemy_reward": SimpleNamespace(ClaimAlchemyReward=task_class),
+            "pcrscript.driver": SimpleNamespace(ADBDriver=ADBDriver),
+            "pcrscript.run_session": SimpleNamespace(RunSession=lambda _: nullcontext(), daily_result=Mock()),
+            "pcrscript.runtime": runtime,
+            "pcrscript.tasks": SimpleNamespace(TimeLimitTask=type("TimeLimitTask", (), {}),
+                                               find_taskclass=registered.get, register=register),
+        }
+        with patch.dict(sys.modules, modules), patch.object(sys, "path", sys.path.copy()), patch.object(pcr_automas_job.subprocess, "run"):
+            pcr_automas_job.main(["--config", "daily_config.yml"])
+        self.assertIs(registered[task_name], task_class)
+        runtime.print_report.assert_called_once_with(report)
+
     def test_schedule_failure_report_is_printed_before_session_exit(self):
         class ADBDriver:
             adb_path = "adb.exe"
@@ -304,3 +339,75 @@ class TestPCRIndividualJob(unittest.TestCase):
                     result_writer.assert_called_once_with(unavailable)
                 else:
                     result_writer.assert_not_called()
+
+
+class TestAlchemyReward(unittest.TestCase):
+    class UIError(RuntimeError):
+        pass
+
+    class Screen:
+        def __init__(self, *items):
+            self.items = items
+            self.image = object()
+
+        def find(self, pattern, roi, exact=False):
+            search = re.fullmatch if exact else re.search
+            left, top, right, bottom = roi
+            return next(((x, y) for text, x, y in self.items
+                         if left <= x <= right and top <= y <= bottom and search(pattern, text)), None)
+
+    def setUp(self):
+        self.ui = Mock()
+        self.enterContext(patch.dict(sys.modules, {
+            "pcrscript.game_ui.screen": SimpleNamespace(EventUI=lambda *_: self.ui, EventUIError=self.UIError),
+            "pcrscript.run_session": SimpleNamespace(clock=SimpleNamespace(monotonic=count(step=8).__next__, sleep=Mock())),
+            "pcrscript.tasks": SimpleNamespace(BaseTask=MockTask),
+        }))
+        self.alchemy = importlib.import_module("core.pcr_alchemy_reward")
+        self.marker = self.enterContext(patch.object(self.alchemy, "dialogue_marker"))
+        self.task = self.alchemy.ClaimAlchemyReward(SimpleNamespace(driver=object()))
+        self.home = self.Screen(("我的主页", 80, 525), ("礼物", 910, 455), ("日程表", 765, 455), ("究极炼成", 616, 456))
+        self.room = self.Screen(("究极炼成", 111, 32), ("相册", 614, 54), ("道具一览", 701, 53))
+
+    def test_claim_clicks_marker_once_and_requires_the_reward_toast(self):
+        self.marker.return_value = (825, 172)
+        receipt = self.Screen(("获得了特别装备炼成Pt×1000", 483, 376))
+
+        def wait(predicate, description, *, timeout):
+            if description == "核对究极炼成对话奖励":
+                self.assertFalse(predicate(self.room))
+                self.assertFalse(predicate(self.Screen(("获得了体力", 483, 376))))
+                self.assertTrue(predicate(receipt))
+                return receipt
+            frame = self.home if description == "识别首页或炼金堂" else self.room
+            self.assertTrue(predicate(frame))
+            return frame
+
+        self.ui.wait.side_effect = wait
+        self.assertEqual(self.task.run(), {"status": "complete"})
+        self.assertEqual([action.args[0] for action in self.ui.click.call_args_list], [(616, 456), (825, 172)])
+
+    def test_no_dialogue_continues_without_clicking_anything_in_the_room(self):
+        self.ui.wait.return_value = self.room
+        self.ui.capture.return_value = self.room
+        self.marker.return_value = None
+        report = self.task.run()
+        self.assertEqual(report["status"], "unavailable")
+        self.ui.click.assert_not_called()
+
+    def test_missing_reward_receipt_does_not_resubmit_the_dialogue(self):
+        self.ui.wait.side_effect = [self.room, self.UIError("核对究极炼成对话奖励超时")]
+        self.marker.return_value = (825, 172)
+        self.assertEqual(self.task.run()["status"], "blocked")
+        self.ui.click.assert_called_once_with((825, 172), delay=.35)
+
+
+class MockTask:
+    def __init__(self, robot):
+        self.robot = robot
+
+    def task_options(self):
+        return {}
+
+    def report_progress(self, *args):
+        pass

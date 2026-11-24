@@ -26,6 +26,23 @@ Daily Clear Hub 可以直接运行 [pcr-script](https://github.com/Gibberer/pcr-
 
 从旧版更新任务列表或移动安装目录时，先更新 Hub 仓库并重跑安装命令，然后在此托管启用「跟随来源目录」并点「立即同步」。[AUTO-MAS 来源同步说明](https://doc.auto-mas.top/docs/script-guide/maafw.html)
 
+### 领取究极炼成奖励
+
+在公主连结账号的「任务队列 → 添加任务 → 日常与领奖」添加「领取究极炼成奖励」。任务从主页进入阿尔凯斯炼金堂，识别角色头上的奖励气泡并等待领奖提示。未解锁入口或当前没有可领取的气泡时会记录跳过。若已点击气泡但没能核实回执，运行记录中会保留截图供排查。[炼金堂奖励的官方说明](https://www.bilibili.com/opus/1159455661750222931)
+
+已有托管要显示新条目，先在 Hub 仓库运行下面的命令。自定义过 `-ToolsRoot` 时沿用原安装目录。安装脚本结束后，在 AUTO-MAS 托管开启「跟随来源目录」，点「立即同步」，然后回任务队列添加条目。
+
+```powershell
+git pull --ff-only
+& .\scripts\setup-windows.ps1 -Games pcr
+```
+
+### 活动困难关卡扫荡
+
+在公主连结账号的「任务队列 → 添加任务 → 挑战与活动」添加「活动日常」，将「活动范围」设为「仅剧情」，并排在「快捷扫荡」前。新剧情活动开放时，脚本会核对一键扫荡列表中的 H-1～H-3 和剩余次数，扫荡还有次数的关卡。三关各三次需要 180 体力和 9 张扫荡券。选择包含多种活动的范围时，前序活动未核验完成会暂停后续活动。[困难扫荡实现](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/tasks/event_sweep.py#L42-L130) · [活动执行顺序](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/tasks/task_activity.py#L68-L125)
+
+复刻困难关卡的每日扫荡和非常困难首领的扫荡目前需要手动处理。若新剧情活动仍未扫荡，在 AUTO-MAS 本次运行的 `run.worker.log` 或上游运行目录的 `console.log`、`summary.json` 中查找「困难扫荡尚未完整开放/无法定位」「困难关卡剩余次数无法确认」或「体力不足以完成困难批量扫荡」。三关都为 `0/3` 时，日志显示「三个困难关卡今日次数已用完」。[复刻处理](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/tasks/task_revival_event.py#L84-L115) · [剧情活动首领处理](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/tasks/event_battle.py#L445-L486)
+
 ### 查看一次托管失败的原因
 
 新版「执行游戏内日程表」会在书页里上下查找「交给可可萝」分区的完成数。顶部「来自可可萝的通知」有自己的计数。脚本核实到「交给可可萝」的未完成进度后，才会点「一键自动」。已有的独立日程表托管只需在 Hub 仓库运行 `git pull --ff-only`，然后重跑此任务。若数量仍无法核实，打开日程表并向下滚动，确认「交给可可萝」分区存在。[上游的日程表分区说明](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/docs/game-knowledge/shop-quests.md#日程表)

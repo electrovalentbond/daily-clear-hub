@@ -106,7 +106,8 @@ class PcrAutomasTests(unittest.TestCase):
             else:
                 row, _ = self.agent.individual_task(data)
                 self.assertEqual(name, row[0])
-        self.assertEqual(20, len(names))
+        self.assertEqual(21, len(names))
+        self.assertIn("claim_alchemy_reward", names)
         self.assertEqual((("quick_clean", 2), {}), self.agent.individual_task({"task": "quick_clean", "args": [2]}))
 
     def test_individual_shop_purchase_needs_explicit_supported_items(self):

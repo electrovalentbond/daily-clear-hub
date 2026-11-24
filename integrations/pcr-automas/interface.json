@@ -2,7 +2,7 @@
     "interface_version": 2,
     "name": "DailyClearPcr",
     "label": "公主连结 B 服",
-    "version": "1.1.0",
+    "version": "1.2.0",
     "description": "在绑定的模拟器中登录 B 服。添加需要的任务，在队列中逐项启用或跳过。",
     "controller": [
         {
@@ -54,6 +54,13 @@
             "default_check": true,
             "description": "默认略过体力礼物，遇到特别装备满仓时保留现有装备。",
             "option": ["GiftSelection"]
+        },
+        {
+            "name": "DailyClearPcrAlchemyReward",
+            "label": "领取究极炼成奖励",
+            "entry": "DailyClearPcrAlchemyReward",
+            "group": ["Routine"],
+            "description": "进入阿尔凯斯炼金堂，观看角色对话并领取奖励。"
         },
         {
             "name": "DailyClearPcrFreeGacha",

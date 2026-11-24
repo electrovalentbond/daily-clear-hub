@@ -79,6 +79,11 @@ def main(argv: list[str] | None = None) -> None:
             raise ValueError("AUTO-MAS 的公主连结任务配置必须恰好包含一项任务")
         row = rows[0]
         task = row[0] if isinstance(row, list) and row and isinstance(row[0], str) else ""
+        if task == "claim_alchemy_reward":
+            from core.pcr_alchemy_reward import ClaimAlchemyReward
+            from pcrscript.tasks import register
+
+            register(task, requires_home=True)(ClaimAlchemyReward)
         task_class = find_taskclass(task)
         if task_class is None:
             raise ValueError(f"未知的公主连结任务：{task}")
@@ -127,4 +132,5 @@ def main(argv: list[str] | None = None) -> None:
 
 
 if __name__ == "__main__":
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
     main()
