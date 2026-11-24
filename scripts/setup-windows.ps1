@@ -251,6 +251,9 @@ try {
             'pcr' { Prepare-Pcr }
             default {
                 $Entry = Install-ZipRelease $Releases[$Game]
+                if ($Game -eq 'bhxy2') {
+                    Invoke-CheckedNative $HubPython @((Join-Path $PSScriptRoot 'patch_maabh2.py'), $Entry)
+                }
                 Write-Host ("${Game}: " + (Split-Path -Parent $Entry))
             }
         }
