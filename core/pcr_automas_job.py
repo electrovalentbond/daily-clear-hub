@@ -8,6 +8,32 @@ import sys
 from pathlib import Path
 
 
+def restore_schedule_counter(task, screen):
+    """Find the saved schedule counter, including below the notification rows."""
+    track = (769, 97, 784, 445)
+
+    def counter_visible(view):
+        return task.book(view) and task.completion(view) is not None
+
+    # Completion results can leave the book scrolled down. Start by looking
+    # upward, then scan down with overlapping views of the list.
+    for direction in (-1, 1):
+        for _ in range(6):
+            if not task.book(screen) or task.completion(screen) is not None:
+                return screen
+            if task.ui.scrollbar_bounds(screen, track) is None:
+                return screen
+            moved = task.ui.scrollbar(
+                screen, track, direction, reached=counter_visible,
+                content_distance=220, content_roi=(195, 97, 765, 445),
+            )
+            if task.ui.last is not None:
+                screen = task.ui.last
+            if not moved:
+                break
+    return screen
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description="运行一项公主连结日常")
     parser.add_argument("--config", required=True, type=Path)
@@ -21,6 +47,7 @@ def main(argv: list[str] | None = None) -> None:
     from pcrscript.runtime import load_config, print_report, run_script, select_driver, summarize_daily
     from pcrscript.tasks import TimeLimitTask, find_taskclass
 
+    exit_status = None
     with RunSession("daily"):
         config = load_config(args.config)
         groups = config.get("Task")
@@ -32,6 +59,10 @@ def main(argv: list[str] | None = None) -> None:
         task_class = find_taskclass(task)
         if task_class is None:
             raise ValueError(f"未知的公主连结任务：{task}")
+        if task == "schedule":
+            # This process runs a single task from the pinned pcr-script.
+            # Keep its submission, resource checks and completion verification.
+            task_class.restore_counter = restore_schedule_counter
 
         extra = config.get("Extra")
         serial = extra.get("adb_serial") if isinstance(extra, dict) else None
@@ -61,7 +92,15 @@ def main(argv: list[str] | None = None) -> None:
                 "report": {"reason": "当前条件下不可执行此限时任务"},
             }])
             daily_result(report)
-    print_report(report)
+
+        # RunSession can exit with code 1 after a caught task error. Emit the
+        # report first, while keeping print_report's exit outside the session.
+        try:
+            print_report(report)
+        except SystemExit as exc:
+            exit_status = exc
+    if exit_status is not None:
+        raise exit_status
 
 
 if __name__ == "__main__":

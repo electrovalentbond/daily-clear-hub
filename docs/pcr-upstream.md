@@ -26,6 +26,8 @@ Daily Clear Hub 可以直接运行 [pcr-script](https://github.com/Gibberer/pcr-
 
 ### 查看一次托管失败的原因
 
+新版「执行游戏内日程表」会在书页里上下查找「交给可可萝」分区的完成数。顶部「来自可可萝的通知」有自己的计数。脚本核实到「交给可可萝」的未完成进度后，才会点「一键自动」。已有的独立日程表托管只需在 Hub 仓库运行 `git pull --ff-only`，然后重跑此任务。若数量仍无法核实，打开日程表并向下滚动，确认「交给可可萝」分区存在。[上游的日程表分区说明](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/docs/game-knowledge/shop-quests.md#日程表)
+
 账号汇总只显示「停在 `DailyClearPcrRun`」时，打开 AUTO-MAS「历史记录」对应的运行详情，从附件打开 `run.worker.log`。搜索 `公主连结运行失败`、`失败原因`、`pcr-script 输出` 或 `[Agent:`。运行结束后，详细日志通常会归档到 AUTO-MAS 安装目录的 `history`。磁盘上的附件可能按数字编号。[AUTO-MAS 日志归档](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/core/history.py#L435-L489)
 
 如果本轮已启动上游脚本，可以在安装输出中 `pcr project:` 对应的目录下打开 `cache/daily/runs/`，查看对应时刻的 `console.log` 和 `summary.json`。用默认安装目录时，可用 PowerShell 读最近一份 `console.log`。[pcr-script 运行记录](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/run_session.py)

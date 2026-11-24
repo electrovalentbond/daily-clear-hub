@@ -3,7 +3,7 @@ import json
 import subprocess
 import sys
 import unittest
-from contextlib import nullcontext, redirect_stdout
+from contextlib import contextmanager, nullcontext, redirect_stdout
 from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -143,6 +143,75 @@ class TestPCRBackend(unittest.TestCase):
 
 
 class TestPCRIndividualJob(unittest.TestCase):
+    def test_schedule_searches_below_notification_rows(self):
+        notifications, schedule = object(), object()
+        ui = Mock(last=notifications, spec=["scrollbar_bounds", "scrollbar", "last"])
+        ui.scrollbar_bounds.return_value = (98, 222)
+        task = SimpleNamespace(book=lambda _: True, completion=lambda view: (0, 7) if view is schedule else None, ui=ui)
+
+        def scroll(screen, roi, direction, *, reached, content_distance, content_roi):
+            self.assertIs(screen, notifications)
+            self.assertEqual(roi, (769, 97, 784, 445))
+            self.assertLess(content_distance, roi[3] - roi[1])
+            self.assertEqual(content_roi, (195, 97, 765, 445))
+            self.assertFalse(reached(notifications))
+            if direction < 0:
+                return False
+            ui.last = schedule
+            return reached(schedule)
+
+        ui.scrollbar.side_effect = scroll
+        self.assertIs(pcr_automas_job.restore_schedule_counter(task, notifications), schedule)
+        self.assertEqual([item.args[2] for item in ui.scrollbar.call_args_list], [-1, 1])
+
+    def test_schedule_stops_scrolling_when_book_or_track_is_unverified(self):
+        for book, track in ((False, (98, 222)), (True, None)):
+            with self.subTest(book=book, track=track):
+                screen = object()
+                ui = Mock(last=screen)
+                ui.scrollbar_bounds.return_value = track
+                task = SimpleNamespace(book=lambda _: book, completion=lambda _: None, ui=ui)
+                self.assertIs(pcr_automas_job.restore_schedule_counter(task, screen), screen)
+                ui.scrollbar.assert_not_called()
+
+    def test_schedule_failure_report_is_printed_before_session_exit(self):
+        class ADBDriver:
+            adb_path = "adb.exe"
+            device_name = "emulator-5556"
+
+        class Schedule:
+            pass
+
+        @contextmanager
+        def failed_session(_):
+            yield
+            raise SystemExit(1)
+
+        report = {"status": "error", "verified": False, "tasks": [{"task": "schedule", "status": "error"}]}
+        runtime = SimpleNamespace(
+            load_config=Mock(return_value={"Task": {1: [["schedule"]]}, "Extra": {"adb_serial": "emulator-5556"}}),
+            print_report=Mock(side_effect=SystemExit(2)),
+            run_script=Mock(return_value=report),
+            select_driver=Mock(return_value=ADBDriver()),
+            summarize_daily=Mock(),
+        )
+        modules = {
+            "pcrscript.driver": SimpleNamespace(ADBDriver=ADBDriver),
+            "pcrscript.run_session": SimpleNamespace(RunSession=failed_session, daily_result=Mock()),
+            "pcrscript.runtime": runtime,
+            "pcrscript.tasks": SimpleNamespace(TimeLimitTask=type("TimeLimitTask", (), {}), find_taskclass=lambda _: Schedule),
+        }
+        with (
+            patch.dict(sys.modules, modules),
+            patch.object(sys, "path", sys.path.copy()),
+            patch.object(pcr_automas_job.subprocess, "run"),
+            self.assertRaises(SystemExit) as exit_status,
+        ):
+            pcr_automas_job.main(["--config", "profile.yml"])
+        self.assertEqual(exit_status.exception.code, 1)
+        self.assertIs(Schedule.restore_counter, pcr_automas_job.restore_schedule_counter)
+        runtime.print_report.assert_called_once_with(report)
+
     def test_only_empty_temporal_results_are_converted_to_unavailable(self):
         class ADBDriver:
             adb_path = "adb.exe"
