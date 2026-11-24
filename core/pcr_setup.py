@@ -5,6 +5,7 @@ import subprocess
 from dataclasses import replace
 from pathlib import Path
 from shutil import which
+from typing import Any
 
 from core.config_loader import GameConfig
 
@@ -83,7 +84,8 @@ def discover_pcr(game: GameConfig, tools_root: Path) -> GameConfig | None:
 
 
 def configure_pcr(
-    game: GameConfig, project: Path, adb: Path, serial: str, tasks: tuple[tuple[str | bool, ...], ...]
+    game: GameConfig, project: Path, adb: Path, serial: str,
+    tasks: tuple[tuple[Any, ...], ...], *, settings: dict[str, Any] | None = None,
 ) -> GameConfig:
     timeout = game.timeout if game.backend == "pcr_script" else 1800
     return replace(game, backend="pcr_script", timeout=timeout, options={
@@ -91,6 +93,7 @@ def configure_pcr(
         "project_dir": str(project),
         "executable": str(project / ".venv" / "Scripts" / "python.exe"),
         "_pcr_runtime_config": {
+            **(settings or {}),
             "Extra": {"adb_path": str(adb), "adb_serial": serial, "dnpath": ""},
             "Gift": {"auto_dismantle": False},
             "Task": {1: [list(task) for task in tasks]},

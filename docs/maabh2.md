@@ -24,6 +24,8 @@ $MaaBh2Root
 2. 绑定已经登录游戏的实例。若用 B 服，明确填写游戏包名 `com.miHoYo.HSoDv2BiliBiliRelease`。选择其他渠道时填写其包名。AUTO-MAS 已负责启动正确游戏时，可以在 MaaBH2 队列里省去「启动游戏」；这个上游任务在初次启动失败后会轮询其他渠道。
 3. 添加或启用一个账号。首次可让游戏停在主页，任务队列只选「10. 每日每周任务奖励领取」。上线检查确认后，再加入社团、使魔探险和清体力。加入清体力前，按任务说明设置装备及摇杆。预设也包含购买和装备切换，请按需要选择任务。[MaaBH2 任务和启动选项](https://github.com/freeze-12/MaaBH2/blob/bd2f83a6dbd6dc5516a79e910ced08b745e8eb70/interface.json) · [AUTO-MAS MFW 配置方法](https://doc.auto-mas.top/docs/script-guide/maafw.html)
 
+需要在任务结束或失败后保留画面时，可选择 [保留雷电模式](automas-keep-emulator.md)，手动打开实例并进入主页后再运行托管。
+
 完成托管后，回到 Hub 仓库执行检查及单款日常。
 
 ```powershell

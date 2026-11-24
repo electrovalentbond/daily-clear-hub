@@ -13,6 +13,10 @@ from core.config_loader import PROJECT_ROOT, GameConfig
 
 
 VERIFIED_TASK_STATUSES = {"complete", "already_complete", "unavailable"}
+UNVERIFIED_INDIVIDUAL_TASKS = frozenset({
+    "free_gacha", "normal_gacha", "arena", "princess_arena", "research",
+    "adventure_daily", "quick_clean", "shop_buy",
+})
 
 
 def _python_path(game: GameConfig) -> Path:
@@ -30,6 +34,19 @@ def _config_payload(game: GameConfig) -> object:
         raise ValueError(f"无法读取 pcr-script 配置：{config_path}（{exc}）") from exc
 
 
+def _config_tasks(config: dict) -> list[list]:
+    task_groups = config.get("Task")
+    if not isinstance(task_groups, dict) or len(task_groups) != 1:
+        raise ValueError("pcr-script 日常命令只读取第一组任务，请在 Task 中保留一组任务")
+    tasks = next(iter(task_groups.values()))
+    if not isinstance(tasks, list) or not tasks or not all(
+        isinstance(row, list) and row and isinstance(row[0], str) and row[0].strip()
+        for row in tasks
+    ):
+        raise ValueError("pcr-script 的 Task 应为非空任务列表，例如 Task: {1: [[schedule]]}")
+    return tasks
+
+
 def check_pcr(game: GameConfig) -> None:
     python = _python_path(game)
     if not python.is_file() or not python.name.lower().startswith("python"):
@@ -45,15 +62,7 @@ def check_pcr(game: GameConfig) -> None:
     if not isinstance(config, dict):
         raise ValueError("pcr-script 配置应为 YAML 映射")
 
-    task_groups = config.get("Task")
-    if not isinstance(task_groups, dict) or len(task_groups) != 1:
-        raise ValueError("pcr-script 日常命令只读取第一组任务，请在 Task 中保留一组任务")
-    tasks = next(iter(task_groups.values()))
-    if not isinstance(tasks, list) or not tasks or not all(
-        isinstance(row, list) and row and isinstance(row[0], str) and row[0].strip()
-        for row in tasks
-    ):
-        raise ValueError("pcr-script 的 Task 应为非空任务列表，例如 Task: {1: [[schedule]]}")
+    _config_tasks(config)
 
     extra = config.get("Extra", {})
     if not isinstance(extra, dict) or not all(
@@ -73,10 +82,24 @@ def check_pcr(game: GameConfig) -> None:
 
 
 def run_pcr(
-    game: GameConfig, run_command: Callable[..., int], *, log: Callable[[str], None] = partial(print, flush=True),
+    game: GameConfig,
+    run_command: Callable[..., int],
+    *,
+    log: Callable[[str], None] = partial(print, flush=True),
+    individual: bool = False,
 ) -> None:
+    individual_task = None
+    if individual:
+        config = _config_payload(game)
+        if not isinstance(config, dict):
+            raise ValueError("pcr-script 配置应为 YAML 映射")
+        tasks = _config_tasks(config)
+        if len(tasks) != 1:
+            raise ValueError("AUTO-MAS 的公主连结任务配置必须恰好包含一项任务")
+        individual_task = tasks[0][0]
+
     if "_pcr_runtime_config" not in game.options:
-        _run_cli(game, run_command, game.path("pcr_config"), log)
+        _run_cli(game, run_command, game.path("pcr_config"), log, individual_task=individual_task)
         return
     with TemporaryDirectory(prefix="daily-clear-pcr-") as directory:
         config_path = Path(directory) / "daily_config.yml"
@@ -84,12 +107,20 @@ def run_pcr(
             yaml.safe_dump(_config_payload(game), allow_unicode=True),
             encoding="utf-8",
         )
-        _run_cli(game, run_command, config_path, log)
+        _run_cli(game, run_command, config_path, log, individual_task=individual_task)
 
 
-def _run_cli(game: GameConfig, run_command: Callable[..., int], config_path: Path, log: Callable[[str], None]) -> None:
+def _run_cli(
+    game: GameConfig,
+    run_command: Callable[..., int],
+    config_path: Path,
+    log: Callable[[str], None],
+    *,
+    individual_task: str | None,
+) -> None:
+    script = str(PROJECT_ROOT / "core" / "pcr_automas_job.py") if individual_task is not None else "daily_task.py"
     command = [
-        str(_python_path(game)), "-X", "utf8", "-u", "daily_task.py",
+        str(_python_path(game)), "-X", "utf8", "-u", script,
         "--config", str(config_path),
     ]
     with TemporaryFile() as output:
@@ -118,13 +149,28 @@ def _run_cli(game: GameConfig, run_command: Callable[..., int], config_path: Pat
     )
     if not valid_tasks:
         raise ValueError(f"pcr-script 没有可核实的任务结果（退出码 {code}）；请查看上游 cache/daily/runs")
+    if individual_task is not None and (len(tasks) != 1 or tasks[0]["task"] != individual_task):
+        raise ValueError(f"pcr-script 报告与本次任务 {individual_task} 不匹配")
     for task in tasks:
-        log(f"  {task['task']}  {task['status']}")
+        status = task["status"]
+        note = {"finished": "（执行结束，结果未核验）", "unavailable": "（不可用，已跳过）"}.get(status, "")
+        log(f"  {task['task']}  {status}{note}")
         reasons = task.get("reasons")
-        if task["status"] not in VERIFIED_TASK_STATUSES and isinstance(reasons, list):
+        if status not in {"complete", "already_complete"} and isinstance(reasons, list):
             for reason in reasons:
                 if isinstance(reason, str) and reason.strip():
-                    log(f"  {task['task']} 失败原因：{reason.strip()[:400]}")
+                    label = "跳过原因" if status == "unavailable" else "失败原因"
+                    log(f"  {task['task']} {label}：{reason.strip()[:400]}")
+    # These legacy tasks return no completion proof. Stop after one clean
+    # execution to avoid repeating operations that may have spent resources.
+    if (
+        code == 0
+        and individual_task in UNVERIFIED_INDIVIDUAL_TASKS
+        and report.get("status") == "finished"
+        and report.get("verified") is False
+        and tasks[0]["status"] == "finished"
+    ):
+        return
     if code or report.get("status") != "complete" or report.get("verified") is not True or any(
         task["status"] not in VERIFIED_TASK_STATUSES for task in tasks
     ):

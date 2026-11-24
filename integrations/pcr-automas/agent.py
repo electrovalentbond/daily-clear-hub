@@ -21,6 +21,19 @@ TASK_NODES = (
     "DailyClearPcrQuestReward",
     "DailyClearPcrGift",
 )
+NO_ARGUMENT_TASKS = frozenset({
+    "schedule", "normal_gacha", "arena", "princess_arena", "research", "adventure_daily",
+    "recollection", "dawn_labyrinth", "get_quest_reward", "abyss_subjugation", "team_battle",
+    "luna_tower_clean", "luna_tower_climb", "upgrade_all_characters",
+})
+TASK_TIMEOUTS = {
+    "campaign_clean": 9000,
+    "clear_campaign_first_time": 4200,
+    "abyss_subjugation": 8100,
+    "team_battle": 4200,
+    "luna_tower_climb": 4200,
+}
+ACTIVITY_TYPES = {"collaboration_raid", "revival", "story"}
 
 
 def selected_tasks(context, task_rows):
@@ -38,7 +51,70 @@ def selected_tasks(context, task_rows):
     return tuple(tasks)
 
 
-def launch(context, log, stderr):
+def shop_rules(raw):
+    try:
+        rules = json.loads(raw)
+    except (TypeError, ValueError) as exc:
+        raise ValueError('请填写商店与商品编号，例如 {"1":[1,2]}') from exc
+    if not isinstance(rules, dict) or not rules:
+        raise ValueError("请先填写要购买的商店与商品编号")
+    for shop, items in rules.items():
+        if shop not in {"1", "2", "3", "4", "5", "6", "7", "8", "9"} or not isinstance(items, list) or not items:
+            raise ValueError("商店购买配置无效，请填写上游支持的商店与商品编号")
+        if items == [-1] and shop in {"1", "9"}:
+            continue
+        if not all(type(item) is int and 1 <= item <= 4 for item in items) or len(set(items)) != len(items):
+            raise ValueError("商品编号应为上游支持的首屏 1～4，通常或限定商店可以选择全选")
+    return rules
+
+
+def individual_task(raw):
+    task = raw.get("task")
+    args = raw.get("args", [])
+    settings = raw.get("settings", {})
+    if not isinstance(task, str) or not isinstance(args, list) or not isinstance(settings, dict):
+        raise ValueError("AUTO-MAS 公主连结任务配置无效")
+    if task in {"free_gacha", "get_gift", "clear_campaign_first_time"}:
+        valid = len(args) == 1 and type(args[0]) is bool
+    elif task == "campaign_clean":
+        valid = len(args) == 2 and all(type(value) is bool for value in args)
+    elif task == "quick_clean":
+        valid = len(args) == 1 and type(args[0]) is int and 1 <= args[0] <= 7
+    elif task == "shop_buy":
+        valid = len(args) == 1
+        if valid:
+            args = [shop_rules(args[0])]
+    else:
+        valid = task in NO_ARGUMENT_TASKS and not args
+    if not valid:
+        raise ValueError(f"公主连结任务 {task} 的参数无效")
+
+    if task == "campaign_clean":
+        options = settings.get("Activities", {})
+        activities = options.get("types") if isinstance(options, dict) else None
+        if not isinstance(activities, list) or not activities or any(
+            not isinstance(activity, str) or activity not in ACTIVITY_TYPES for activity in activities
+        ):
+            raise ValueError("请至少选择一项活动类型")
+        settings = {"Activities": {"types": list(dict.fromkeys(activities))}}
+    elif task == "recollection":
+        options = settings.get("Recollection", {})
+        if not isinstance(options, dict):
+            raise ValueError("追忆战场选项无效")
+        flags = {key: options.get(key, True) for key in ("claim_rewards", "sweep_dominion")}
+        if not all(type(value) is bool for value in flags.values()) or not any(flags.values()):
+            raise ValueError("追忆战场至少选择领奖或扫荡一项")
+        settings = {"Recollection": flags}
+    elif task == "abyss_subjugation":
+        settings = {"AbyssSubjugation": {
+            "first_clear": False, "auto_equip_special": False, "on_demand_cultivation": False,
+        }}
+    else:
+        settings = {}
+    return (task, *args), settings
+
+
+def launch(context, log, stderr, raw):
     try:
         installation = json.loads(INSTALL_CONFIG.read_text(encoding="utf-8-sig"))
         hub = Path(installation["hub_root"])
@@ -61,7 +137,14 @@ def launch(context, log, stderr):
         # core 中使用的导入已经解析，后续不影响 Agent 其它模块的查找。
         sys.path.pop(0)
 
-    tasks = selected_tasks(context, PCR_DAILY_TASKS)
+    if raw:
+        task, settings = individual_task(raw)
+        tasks = (task,)
+        timeout = TASK_TIMEOUTS.get(task[0], 1800)
+    else:
+        tasks = selected_tasks(context, PCR_DAILY_TASKS)
+        settings = {}
+        timeout = 1800
     tasker = context.tasker
     info = tasker.controller.info
     if info.get("type") != "adb":
@@ -74,13 +157,18 @@ def launch(context, log, stderr):
     if not adb.is_absolute() or not adb.is_file():
         raise ValueError(f"找不到 AUTO-MAS 使用的 ADB 程序：{adb}")
 
-    game = configure_pcr(GameConfig("公主连结 B 服", True, "pcr_script", 1800, {}), project, adb, serial, tasks)
+    game = configure_pcr(
+        GameConfig("公主连结 B 服", True, "pcr_script", timeout, {}), project, adb, serial, tasks, settings=settings,
+    )
     with run_lock():
         if find_pcr_target(adb, serial) is None:
             raise ValueError(f"选中的模拟器 {serial} 未连接，或未安装公主连结 B 服")
         check_pcr(game)
         log(f"ADB 设备 {serial} 已就绪，启动 pcr-script")
-        run_pcr(game, partial(run_command, cancelled=lambda: tasker.stopping, stderr=stderr), log=log)
+        run_pcr(
+            game, partial(run_command, cancelled=lambda: tasker.stopping, stderr=stderr),
+            log=log, individual=bool(raw),
+        )
 
 
 def open_log():
@@ -94,7 +182,7 @@ def open_log():
 
 @AgentServer.custom_action("DailyClearPcr")
 class DailyClearPcr(CustomAction):
-    def run(self, context, _argv):
+    def run(self, context, argv):
         with open_log() as stream:
             def log(message):
                 print(message, flush=True)
@@ -106,7 +194,10 @@ class DailyClearPcr(CustomAction):
 
             log("开始公主连结日常")
             try:
-                launch(context, log, stream)
+                raw = json.loads(getattr(argv, "custom_action_param", "") or "null")
+                if raw is not None and not isinstance(raw, dict):
+                    raise ValueError("AUTO-MAS 公主连结任务参数应为对象")
+                launch(context, log, stream, raw)
             except subprocess.TimeoutExpired:
                 log("公主连结运行或设备连接超时")
                 return False

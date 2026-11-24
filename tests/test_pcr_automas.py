@@ -60,6 +60,7 @@ class PcrAutomasTests(unittest.TestCase):
                 self.assertTrue(self.agent.DailyClearPcr().run(context, None))
             target.assert_called_once_with(adb, "emulator-5556")
             game, command = run.call_args.args
+            self.assertFalse(run.call_args.kwargs["individual"])
             self.assertEqual(game.options["_pcr_runtime_config"], {
                 "Extra": {"adb_path": str(adb), "adb_serial": "emulator-5556", "dnpath": ""},
                 "Gift": {"auto_dismantle": False},
@@ -86,3 +87,36 @@ class PcrAutomasTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "至少勾选一项"):
             self.agent.selected_tasks(self.context("adb", set()), PCR_DAILY_TASKS)
+
+    def test_new_task_queue_rows_use_distinct_single_task_actions(self):
+        pipeline = json.loads((PROJECT / "resource/pipeline/daily.json").read_text(encoding="utf-8"))
+        names = set()
+        for task in self.profile["task"]:
+            if task["name"] == "DailyClearPcrDaily":
+                continue
+            action = pipeline[task["entry"]]["action"]
+            self.assertEqual("DailyClearPcr", action["param"]["custom_action"])
+            data = action["param"]["custom_action_param"]
+            name = data["task"]
+            self.assertNotIn(name, names)
+            names.add(name)
+            if name in ("shop_buy", "quick_clean"):
+                with self.assertRaises(ValueError):
+                    self.agent.individual_task(data)
+            else:
+                row, _ = self.agent.individual_task(data)
+                self.assertEqual(name, row[0])
+        self.assertEqual(20, len(names))
+        self.assertEqual((("quick_clean", 2), {}), self.agent.individual_task({"task": "quick_clean", "args": [2]}))
+
+    def test_individual_shop_purchase_needs_explicit_supported_items(self):
+        payload = {"task": "shop_buy", "args": ['{"1":[1,2]}']}
+        self.assertEqual((("shop_buy", {"1": [1, 2]}), {}), self.agent.individual_task(payload))
+        for invalid in ("{}", '{"2":[-1]}', '{"1":[true]}'):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                self.agent.individual_task({"task": "shop_buy", "args": [invalid]})
+
+    def test_basic_preset_matches_default_individual_tasks(self):
+        expected = ["DailyClearPcrStandaloneSchedule", "DailyClearPcrStandaloneQuestReward", "DailyClearPcrStandaloneGift"]
+        self.assertEqual(expected, [task["name"] for task in self.profile["task"] if task.get("default_check")])
+        self.assertEqual(expected, [task["name"] for task in self.profile["preset"][0]["task"] if task["enabled"]])

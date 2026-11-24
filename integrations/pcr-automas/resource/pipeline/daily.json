@@ -17,5 +17,167 @@
     "DailyClearPcrGift": {
         "enabled": false,
         "attach": {"enabled": false}
+    },
+    "DailyClearPcrStandaloneSchedule": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "schedule", "args": []}}
+        }
+    },
+    "DailyClearPcrStandaloneQuestReward": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "get_quest_reward", "args": []}}
+        }
+    },
+    "DailyClearPcrStandaloneGift": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "get_gift", "args": [true]}}
+        }
+    },
+    "DailyClearPcrFreeGacha": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "free_gacha", "args": [false]}}
+        }
+    },
+    "DailyClearPcrNormalGacha": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "normal_gacha", "args": []}}
+        }
+    },
+    "DailyClearPcrAdventure": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "adventure_daily", "args": []}}
+        }
+    },
+    "DailyClearPcrArena": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "arena", "args": []}}
+        }
+    },
+    "DailyClearPcrPrincessArena": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "princess_arena", "args": []}}
+        }
+    },
+    "DailyClearPcrCampaign": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {
+                "custom_action": "DailyClearPcr",
+                "custom_action_param": {
+                    "task": "campaign_clean", "args": [true, false],
+                    "settings": {"Activities": {"types": ["collaboration_raid", "revival", "story"]}}
+                }
+            }
+        }
+    },
+    "DailyClearPcrCampaignFirstClear": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "clear_campaign_first_time", "args": [false]}}
+        }
+    },
+    "DailyClearPcrAbyssSubjugation": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {
+                "custom_action": "DailyClearPcr",
+                "custom_action_param": {
+                    "task": "abyss_subjugation", "args": [],
+                    "settings": {"AbyssSubjugation": {
+                        "first_clear": false,
+                        "auto_equip_special": false,
+                        "on_demand_cultivation": false
+                    }}
+                }
+            }
+        }
+    },
+    "DailyClearPcrTeamBattle": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "team_battle", "args": []}}
+        }
+    },
+    "DailyClearPcrLunaTowerClean": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "luna_tower_clean", "args": []}}
+        }
+    },
+    "DailyClearPcrLunaTowerClimb": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "luna_tower_climb", "args": []}}
+        }
+    },
+    "DailyClearPcrResearch": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "research", "args": []}}
+        }
+    },
+    "DailyClearPcrRecollection": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {
+                "custom_action": "DailyClearPcr",
+                "custom_action_param": {
+                    "task": "recollection", "args": [],
+                    "settings": {"Recollection": {"claim_rewards": true, "sweep_dominion": true}}
+                }
+            }
+        }
+    },
+    "DailyClearPcrDawnLabyrinth": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "dawn_labyrinth", "args": []}}
+        }
+    },
+    "DailyClearPcrQuickClean": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "quick_clean", "args": []}}
+        }
+    },
+    "DailyClearPcrShopBuy": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "shop_buy", "args": [""]}}
+        }
+    },
+    "DailyClearPcrCharacterUpgrade": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "upgrade_all_characters", "args": []}}
+        }
     }
 }

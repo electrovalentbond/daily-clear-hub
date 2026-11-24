@@ -2,8 +2,8 @@
     "interface_version": 2,
     "name": "DailyClearPcr",
     "label": "公主连结 B 服",
-    "version": "1.0.0",
-    "description": "选择运行日常的模拟器实例。首次在模拟器中登录 B 服，检查游戏内保存的日程表。",
+    "version": "1.1.0",
+    "description": "在绑定的模拟器中登录 B 服。添加需要的任务，在队列中逐项启用或跳过。",
     "controller": [
         {
             "name": "Android",
@@ -23,17 +23,430 @@
         "child_exec": "python",
         "child_args": ["-X", "utf8", "-u", "./agent.py"]
     },
+    "group": [
+        {"name": "Routine", "label": "日常与领奖"},
+        {"name": "Battle", "label": "挑战与活动"},
+        {"name": "Resources", "label": "扫荡与资源"},
+        {"name": "Legacy", "label": "已有队列"}
+    ],
     "task": [
         {
-            "name": "DailyClearPcrDaily",
-            "label": "公主连结日常",
-            "entry": "DailyClearPcrRun",
+            "name": "DailyClearPcrStandaloneSchedule",
+            "label": "执行游戏内日程表",
+            "entry": "DailyClearPcrStandaloneSchedule",
+            "group": ["Routine"],
             "default_check": true,
-            "description": "打开 B 服客户端，依次执行已勾选的日常事项。",
+            "description": "沿用游戏内保存的安排。运行前核对其中的扫荡、购买和资源用量。"
+        },
+        {
+            "name": "DailyClearPcrStandaloneQuestReward",
+            "label": "领取任务奖励",
+            "entry": "DailyClearPcrStandaloneQuestReward",
+            "group": ["Routine"],
+            "default_check": true,
+            "description": "检查每日、普通和称号三个标签，领取已完成任务的奖励，可能含体力。"
+        },
+        {
+            "name": "DailyClearPcrStandaloneGift",
+            "label": "领取礼物箱",
+            "entry": "DailyClearPcrStandaloneGift",
+            "group": ["Routine"],
+            "default_check": true,
+            "description": "默认略过体力礼物，遇到特别装备满仓时保留现有装备。",
+            "option": ["GiftSelection"]
+        },
+        {
+            "name": "DailyClearPcrFreeGacha",
+            "label": "活动免费十连",
+            "entry": "DailyClearPcrFreeGacha",
+            "group": ["Routine"],
+            "description": "按国服活动日程检查免费十连。上游记录执行结束，抽取结果需在游戏里确认。",
+            "option": ["FreeGachaCount"]
+        },
+        {
+            "name": "DailyClearPcrNormalGacha",
+            "label": "普通扭蛋（需有免费次数）",
+            "entry": "DailyClearPcrNormalGacha",
+            "group": ["Routine"],
+            "description": "运行前确认普通扭蛋有免费次数。上游记录执行结束，抽取结果需在游戏里确认。"
+        },
+        {
+            "name": "DailyClearPcrAdventure",
+            "label": "冒险日常",
+            "entry": "DailyClearPcrAdventure",
+            "group": ["Routine"],
+            "description": "沿用游戏内编队处理探险归来、再次出发和地图事件。上游尚无完成回执。"
+        },
+        {
+            "name": "DailyClearPcrArena",
+            "label": "竞技场",
+            "entry": "DailyClearPcrArena",
+            "group": ["Battle"],
+            "description": "沿用已保存的队伍挑战一次，消耗竞技场挑战次数。上游尚无完成回执。"
+        },
+        {
+            "name": "DailyClearPcrPrincessArena",
+            "label": "公主竞技场",
+            "entry": "DailyClearPcrPrincessArena",
+            "group": ["Battle"],
+            "description": "沿用已保存的队伍挑战一次，消耗公主竞技场挑战次数。上游尚无完成回执。"
+        },
+        {
+            "name": "DailyClearPcrCampaign",
+            "label": "活动日常",
+            "entry": "DailyClearPcrCampaign",
+            "group": ["Battle"],
+            "description": "按选定范围处理开放活动，可能消耗体力、讨伐券和兑换券。剧情活动启用困难扫荡。",
+            "option": ["CampaignTypes"]
+        },
+        {
+            "name": "DailyClearPcrCampaignFirstClear",
+            "label": "剧情活动首通",
+            "entry": "DailyClearPcrCampaignFirstClear",
+            "group": ["Battle"],
+            "description": "核对队伍后推进普通和困难关卡，再处理困难扫荡与奖励。首通会使用现有体力。"
+        },
+        {
+            "name": "DailyClearPcrAbyssSubjugation",
+            "label": "深渊讨伐战扫荡",
+            "entry": "DailyClearPcrAbyssSubjugation",
+            "group": ["Battle"],
+            "description": "仅处理已通关目标，使用现有体力、次数和讨伐委托证。关闭首通和自动培养。"
+        },
+        {
+            "name": "DailyClearPcrTeamBattle",
+            "label": "团队战",
+            "entry": "DailyClearPcrTeamBattle",
+            "group": ["Battle"],
+            "description": "仅适用于 A/B/C 低难度阶段。通过模拟后会装备特别装备并消耗实战次数。"
+        },
+        {
+            "name": "DailyClearPcrLunaTowerClean",
+            "label": "露娜塔回廊检查",
+            "entry": "DailyClearPcrLunaTowerClean",
+            "group": ["Battle"],
+            "description": "检查本期回廊。新版回廊扫荡条件尚待上游适配。"
+        },
+        {
+            "name": "DailyClearPcrLunaTowerClimb",
+            "label": "露娜塔普通楼层推进",
+            "entry": "DailyClearPcrLunaTowerClimb",
+            "group": ["Battle"],
+            "description": "按上游范围核对队伍，先模拟、后挑战普通楼层。"
+        },
+        {
+            "name": "DailyClearPcrResearch",
+            "label": "圣迹与神殿调查",
+            "entry": "DailyClearPcrResearch",
+            "group": ["Resources"],
+            "description": "消耗可用调查次数和体力。上游尚无完成回执。"
+        },
+        {
+            "name": "DailyClearPcrRecollection",
+            "label": "追忆战场领奖与扫荡",
+            "entry": "DailyClearPcrRecollection",
+            "group": ["Resources"],
+            "description": "领取普通追忆战累计报酬，或扫荡已通关的霸领域。扫荡会使用次数和扫荡券。",
+            "option": ["RecollectionMode"]
+        },
+        {
+            "name": "DailyClearPcrDawnLabyrinth",
+            "label": "黎明界迷宫扫荡",
+            "entry": "DailyClearPcrDawnLabyrinth",
+            "group": ["Resources"],
+            "description": "沿用当前难度，使用已有通行证扫荡已通关区域并领奖。"
+        },
+        {
+            "name": "DailyClearPcrQuickClean",
+            "label": "快捷扫荡",
+            "entry": "DailyClearPcrQuickClean",
+            "group": ["Resources"],
+            "description": "消耗体力和扫荡券，使用游戏内预设。仅有困难关卡掉落加倍时，上游改用预设 3，运行前请一起核对。",
+            "option": ["QuickCleanPreset"]
+        },
+        {
+            "name": "DailyClearPcrShopBuy",
+            "label": "商店购买",
+            "entry": "DailyClearPcrShopBuy",
+            "group": ["Resources"],
+            "description": "按你填写的规则购买并消耗对应货币。规则留空时停止。",
+            "option": ["ShoppingRules"]
+        },
+        {
+            "name": "DailyClearPcrCharacterUpgrade",
+            "label": "全角色强化",
+            "entry": "DailyClearPcrCharacterUpgrade",
+            "group": ["Resources"],
+            "description": "分批提高等级、技能、品级和普通装备，消耗现有玛那与材料。"
+        },
+        {
+            "name": "DailyClearPcrDaily",
+            "label": "公主连结日常（旧版组合）",
+            "entry": "DailyClearPcrRun",
+            "group": ["Legacy"],
+            "description": "沿用已有的三项组合和勾选设置。",
             "option": ["DailyActivities"]
         }
     ],
+    "preset": [
+        {
+            "name": "DailyClearPcrBasic",
+            "label": "基础日常",
+            "task": [
+                {"name": "DailyClearPcrStandaloneSchedule", "enabled": true},
+                {"name": "DailyClearPcrStandaloneQuestReward", "enabled": true},
+                {"name": "DailyClearPcrStandaloneGift", "enabled": true}
+            ]
+        }
+    ],
     "option": {
+        "FreeGachaCount": {
+            "type": "select",
+            "label": "免费十连次数",
+            "default_case": "Once",
+            "cases": [
+                {"name": "Once", "label": "一次"},
+                {
+                    "name": "All",
+                    "label": "用完可用免费次数",
+                    "pipeline_override": {
+                        "DailyClearPcrFreeGacha": {
+                            "action": {"type": "Custom", "param": {
+                                "custom_action": "DailyClearPcr",
+                                "custom_action_param": {"task": "free_gacha", "args": [true]}
+                            }}
+                        }
+                    }
+                }
+            ]
+        },
+        "GiftSelection": {
+            "type": "select",
+            "label": "礼物范围",
+            "default_case": "ExcludeStamina",
+            "cases": [
+                {"name": "ExcludeStamina", "label": "除体力外"},
+                {
+                    "name": "All",
+                    "label": "全部，含体力",
+                    "pipeline_override": {
+                        "DailyClearPcrStandaloneGift": {
+                            "action": {"type": "Custom", "param": {
+                                "custom_action": "DailyClearPcr",
+                                "custom_action_param": {"task": "get_gift", "args": [false]}
+                            }}
+                        }
+                    }
+                }
+            ]
+        },
+        "CampaignTypes": {
+            "type": "select",
+            "label": "活动范围",
+            "default_case": "All",
+            "cases": [
+                {"name": "All", "label": "联动讨伐、复刻和剧情"},
+                {
+                    "name": "CollaborationAndRevival",
+                    "label": "联动讨伐和复刻",
+                    "pipeline_override": {
+                        "DailyClearPcrCampaign": {
+                            "action": {"type": "Custom", "param": {
+                                "custom_action": "DailyClearPcr",
+                                "custom_action_param": {
+                                    "task": "campaign_clean", "args": [true, false],
+                                    "settings": {"Activities": {"types": ["collaboration_raid", "revival"]}}
+                                }
+                            }}
+                        }
+                    }
+                },
+                {
+                    "name": "CollaborationAndStory",
+                    "label": "联动讨伐和剧情",
+                    "pipeline_override": {
+                        "DailyClearPcrCampaign": {
+                            "action": {"type": "Custom", "param": {
+                                "custom_action": "DailyClearPcr",
+                                "custom_action_param": {
+                                    "task": "campaign_clean", "args": [true, false],
+                                    "settings": {"Activities": {"types": ["collaboration_raid", "story"]}}
+                                }
+                            }}
+                        }
+                    }
+                },
+                {
+                    "name": "RevivalAndStory",
+                    "label": "复刻和剧情",
+                    "pipeline_override": {
+                        "DailyClearPcrCampaign": {
+                            "action": {"type": "Custom", "param": {
+                                "custom_action": "DailyClearPcr",
+                                "custom_action_param": {
+                                    "task": "campaign_clean", "args": [true, false],
+                                    "settings": {"Activities": {"types": ["revival", "story"]}}
+                                }
+                            }}
+                        }
+                    }
+                },
+                {
+                    "name": "Collaboration",
+                    "label": "仅联动讨伐",
+                    "pipeline_override": {
+                        "DailyClearPcrCampaign": {
+                            "action": {"type": "Custom", "param": {
+                                "custom_action": "DailyClearPcr",
+                                "custom_action_param": {
+                                    "task": "campaign_clean", "args": [true, false],
+                                    "settings": {"Activities": {"types": ["collaboration_raid"]}}
+                                }
+                            }}
+                        }
+                    }
+                },
+                {
+                    "name": "Revival",
+                    "label": "仅复刻",
+                    "pipeline_override": {
+                        "DailyClearPcrCampaign": {
+                            "action": {"type": "Custom", "param": {
+                                "custom_action": "DailyClearPcr",
+                                "custom_action_param": {
+                                    "task": "campaign_clean", "args": [true, false],
+                                    "settings": {"Activities": {"types": ["revival"]}}
+                                }
+                            }}
+                        }
+                    }
+                },
+                {
+                    "name": "Story",
+                    "label": "仅剧情",
+                    "pipeline_override": {
+                        "DailyClearPcrCampaign": {
+                            "action": {"type": "Custom", "param": {
+                                "custom_action": "DailyClearPcr",
+                                "custom_action_param": {
+                                    "task": "campaign_clean", "args": [true, false],
+                                    "settings": {"Activities": {"types": ["story"]}}
+                                }
+                            }}
+                        }
+                    }
+                }
+            ]
+        },
+        "RecollectionMode": {
+            "type": "select",
+            "label": "追忆战场范围",
+            "default_case": "ClaimAndSweep",
+            "cases": [
+                {"name": "ClaimAndSweep", "label": "领奖并扫荡霸领域"},
+                {
+                    "name": "Claim",
+                    "label": "仅领奖",
+                    "pipeline_override": {
+                        "DailyClearPcrRecollection": {
+                            "action": {"type": "Custom", "param": {
+                                "custom_action": "DailyClearPcr",
+                                "custom_action_param": {
+                                    "task": "recollection", "args": [],
+                                    "settings": {"Recollection": {"claim_rewards": true, "sweep_dominion": false}}
+                                }
+                            }}
+                        }
+                    }
+                },
+                {
+                    "name": "Sweep",
+                    "label": "仅扫荡霸领域",
+                    "pipeline_override": {
+                        "DailyClearPcrRecollection": {
+                            "action": {"type": "Custom", "param": {
+                                "custom_action": "DailyClearPcr",
+                                "custom_action_param": {
+                                    "task": "recollection", "args": [],
+                                    "settings": {"Recollection": {"claim_rewards": false, "sweep_dominion": true}}
+                                }
+                            }}
+                        }
+                    }
+                }
+            ]
+        },
+        "QuickCleanPreset": {
+            "type": "select",
+            "label": "快捷扫荡预设",
+            "default_case": "ChoosePreset",
+            "cases": [
+                {"name": "ChoosePreset", "label": "请选择预设"},
+                {
+                    "name": "Preset1", "label": "预设 1",
+                    "pipeline_override": {"DailyClearPcrQuickClean": {"action": {"type": "Custom", "param": {
+                        "custom_action": "DailyClearPcr", "custom_action_param": {"task": "quick_clean", "args": [1]}
+                    }}}}
+                },
+                {
+                    "name": "Preset2", "label": "预设 2",
+                    "pipeline_override": {"DailyClearPcrQuickClean": {"action": {"type": "Custom", "param": {
+                        "custom_action": "DailyClearPcr", "custom_action_param": {"task": "quick_clean", "args": [2]}
+                    }}}}
+                },
+                {
+                    "name": "Preset3", "label": "预设 3",
+                    "pipeline_override": {"DailyClearPcrQuickClean": {"action": {"type": "Custom", "param": {
+                        "custom_action": "DailyClearPcr", "custom_action_param": {"task": "quick_clean", "args": [3]}
+                    }}}}
+                },
+                {
+                    "name": "Preset4", "label": "预设 4",
+                    "pipeline_override": {"DailyClearPcrQuickClean": {"action": {"type": "Custom", "param": {
+                        "custom_action": "DailyClearPcr", "custom_action_param": {"task": "quick_clean", "args": [4]}
+                    }}}}
+                },
+                {
+                    "name": "Preset5", "label": "预设 5",
+                    "pipeline_override": {"DailyClearPcrQuickClean": {"action": {"type": "Custom", "param": {
+                        "custom_action": "DailyClearPcr", "custom_action_param": {"task": "quick_clean", "args": [5]}
+                    }}}}
+                },
+                {
+                    "name": "Preset6", "label": "预设 6",
+                    "pipeline_override": {"DailyClearPcrQuickClean": {"action": {"type": "Custom", "param": {
+                        "custom_action": "DailyClearPcr", "custom_action_param": {"task": "quick_clean", "args": [6]}
+                    }}}}
+                },
+                {
+                    "name": "Preset7", "label": "预设 7",
+                    "pipeline_override": {"DailyClearPcrQuickClean": {"action": {"type": "Custom", "param": {
+                        "custom_action": "DailyClearPcr", "custom_action_param": {"task": "quick_clean", "args": [7]}
+                    }}}}
+                }
+            ]
+        },
+        "ShoppingRules": {
+            "type": "input",
+            "label": "商店设置",
+            "inputs": [
+                {
+                    "name": "ShoppingRule",
+                    "label": "购买规则",
+                    "description": "填写 JSON，例如 {\"1\":[1]} 购买通常商店首屏第 1 项。序号 1 至 4 表示首屏商品。仅通常（1）和限定（9）支持 [-1] 全选。",
+                    "default": "",
+                    "pipeline_type": "string"
+                }
+            ],
+            "pipeline_override": {
+                "DailyClearPcrShopBuy": {
+                    "action": {"type": "Custom", "param": {
+                        "custom_action": "DailyClearPcr",
+                        "custom_action_param": {"task": "shop_buy", "args": ["{ShoppingRule}"]}
+                    }}
+                }
+            }
+        },
         "DailyActivities": {
             "type": "checkbox",
             "label": "日常事项",

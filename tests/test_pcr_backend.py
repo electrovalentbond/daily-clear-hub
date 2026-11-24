@@ -1,14 +1,19 @@
 import io
 import json
 import subprocess
+import sys
 import unittest
-from contextlib import redirect_stdout
+from contextlib import nullcontext, redirect_stdout
+from dataclasses import replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
 import yaml
 
-from core.config_loader import GameConfig
+from core import pcr_automas_job
+from core.config_loader import PROJECT_ROOT, GameConfig
 from core.pcr_backend import check_pcr, run_pcr
 
 
@@ -96,3 +101,96 @@ class TestPCRBackend(unittest.TestCase):
         with redirect_stdout(io.StringIO()) as output, self.assertRaisesRegex(ValueError, "未返回最终 JSON"):
             run_pcr(self.game, self.runner(omit_json=True))
         self.assertIn("pcr-script 输出：进入游戏首页", output.getvalue())
+
+    def test_individual_rejects_multiple_tasks_before_launch(self):
+        run_command = Mock()
+        with self.assertRaisesRegex(ValueError, "恰好包含一项"):
+            run_pcr(self.game, run_command, individual=True)
+        run_command.assert_not_called()
+
+    def test_individual_legacy_finished_requires_clean_exit_and_matching_task(self):
+        game = replace(self.game, options={
+            **self.game.options,
+            "_pcr_runtime_config": {"Task": {1: [["quick_clean", 1]]}},
+        })
+
+        def execute(task="quick_clean", code=0, verified=False):
+            def run_command(command, cwd, timeout, *, stdout):
+                self.assertEqual(command[:6], [
+                    str(self.python), "-X", "utf8", "-u",
+                    str(PROJECT_ROOT / "core" / "pcr_automas_job.py"), "--config",
+                ])
+                self.assertTrue(Path(command[-1]).is_absolute())
+                config = yaml.safe_load(Path(command[-1]).read_text(encoding="utf-8"))
+                self.assertEqual(config["Task"], {1: [["quick_clean", 1]]})
+                self.assertEqual((cwd, timeout), (self.project, 120))
+                stdout.write(json.dumps({
+                    "status": "finished", "verified": verified,
+                    "tasks": [{"task": task, "status": "finished"}],
+                }).encode("utf-8"))
+                return code
+
+            return run_command
+
+        messages = []
+        run_pcr(game, execute(), individual=True, log=messages.append)
+        self.assertIn("执行结束，结果未核验", "\n".join(messages))
+        with self.assertRaisesRegex(ValueError, "不匹配"):
+            run_pcr(game, execute(task="arena"), individual=True, log=messages.append)
+        for run_command in (execute(code=2), execute(verified=True)):
+            with self.assertRaisesRegex(ValueError, "未全部核实完成"):
+                run_pcr(game, run_command, individual=True, log=messages.append)
+
+
+class TestPCRIndividualJob(unittest.TestCase):
+    def test_only_empty_temporal_results_are_converted_to_unavailable(self):
+        class ADBDriver:
+            adb_path = "adb.exe"
+            device_name = "emulator-5554"
+
+        class TimeLimitTask:
+            pass
+
+        task = "event"
+        config = {"Task": {1: [[task]]}, "Extra": {"adb_serial": ADBDriver.device_name}}
+        empty = {"status": "finished", "verified": False, "tasks": []}
+        unavailable = {
+            "status": "complete", "verified": True,
+            "tasks": [{"task": task, "status": "unavailable"}],
+        }
+        for task_class, expected in ((TimeLimitTask, unavailable), (object, empty)):
+            with self.subTest(task_class=task_class):
+                result_writer = Mock()
+                runtime = SimpleNamespace(
+                    load_config=Mock(return_value=config),
+                    print_report=Mock(),
+                    run_script=Mock(return_value=empty),
+                    select_driver=Mock(return_value=ADBDriver()),
+                    summarize_daily=Mock(return_value=unavailable),
+                )
+                modules = {
+                    "pcrscript.driver": SimpleNamespace(ADBDriver=ADBDriver),
+                    "pcrscript.run_session": SimpleNamespace(
+                        RunSession=Mock(return_value=nullcontext()), daily_result=result_writer,
+                    ),
+                    "pcrscript.runtime": runtime,
+                    "pcrscript.tasks": SimpleNamespace(
+                        TimeLimitTask=TimeLimitTask, find_taskclass=Mock(return_value=task_class),
+                    ),
+                }
+                with (
+                    patch.dict(sys.modules, modules),
+                    patch.object(sys, "path", sys.path.copy()),
+                    patch.object(pcr_automas_job.subprocess, "run") as adb,
+                ):
+                    pcr_automas_job.main(["--config", "profile.yml"])
+                adb.assert_called_once_with(
+                    ["adb.exe", "-s", "emulator-5554", "shell", "monkey", "-p", "com.bilibili.priconne", "1"],
+                    stdin=subprocess.DEVNULL, check=True, timeout=15,
+                )
+                runtime.run_script.assert_called_once_with(config)
+                runtime.print_report.assert_called_once_with(expected)
+                if expected is unavailable:
+                    result_writer.assert_called_once_with(unavailable)
+                else:
+                    result_writer.assert_not_called()
