@@ -70,6 +70,9 @@ git pull --ff-only
 ### 三款专项游戏
 
 - **星铁** 先打开一次三月七小助手并保存，让它生成 `config.yaml`。新建「HSR脚本」，「三月七路径」指向含 `March7th Assistant.exe` 的目录，SRA 路径可留空。「由 MAS 启动和关闭游戏」选「是」，「游戏路径」选含 `StarRail.exe` 的文件夹。账号选「独立配置」，在「任务配置」勾选「日常与奖励」、需要的体力与周常模块，并选择三月七引擎。历战余响可设开始日。差分宇宙与货币战争共用本周完成记录。[HSR 托管指南](https://doc.auto-mas.top/docs/script-guide/hsr.html)
+
+  **星铁搬盘后的路径。** 如果游戏在 `D:\Star Rail\Game`，三月七「设置 → 游戏连接 → 游戏路径 → 修改」要选 `D:\Star Rail\Game\StarRail.exe`。误选外层的 `D:\Star Rail\StarRail.exe` 可能会提示找不到 `UnityPlayer.dll`。AUTO-MAS 的「游戏路径」和 Starward 的「重新定位游戏」都选内层文件夹 `D:\Star Rail\Game`。安装目录不同时，先用米哈游启动器打开游戏，再在任务管理器的「详细信息」里右键 `StarRail.exe`，选择「打开文件所在的位置」核对实际路径。
+
 - **原神** 安装并打开一次 BetterGI，在其「启动」页启用「同时启动原神」和「自动进入游戏」，浏览选择游戏客户端，然后退出 BetterGI。新建「BetterGI脚本」，「BetterGI 路径」指向含 `BetterGI.exe` 的目录。账号用「独立配置」，在「任务配置」勾选领取每日奖励、邮件和需要的体力项目。高级设置可从账号页的「配置 BetterGI」进入。队列运行时，BetterGI 根据保存的启动配置打开原神。[BetterGI 托管指南](https://doc.auto-mas.top/docs/script-guide/bettergi.html) · [BetterGI 启动设置](https://www.bettergi.com/quickstart.html)
 - **绝区零** 先打开一次 `OneDragon-RuntimeLauncher.exe` 完成初始化，再退出一条龙。新建「ZZZ-OD脚本」，指定包含该启动器的「ZZZ-OD 安装目录」。单账号选「原生」，在实例管理中把目标实例「设为活跃」，「运行实例」选「仅运行当前」，启动器选「集成」或「自动」。在账号页填写实例的 `ZenlessZoneZero.exe` 完整路径，在「任务配置」启用录像店、刮卡、活跃度领奖等日常。需要周常时可在同页设置恶名狩猎计划。「游戏结束后操作」选「无」，一条龙会用实例的路径启动游戏。[原神与绝区零首次配置](hoyo-upstream.md) · [绝区零任务配置](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/frontend/src/views/EditView/User/ZzzOdUserEdit.vue#L575-L605)
 
