@@ -1,6 +1,8 @@
+import io
 import subprocess
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest.mock import call, patch
 
@@ -27,16 +29,64 @@ class KeepEmulatorTest(unittest.TestCase):
             b"emulator-5554\tdevice\r\n"
             b"emulator-5556\toffline\r\n"
         )
-        self.assertEqual(keep_emulator._select_serial(self.adb, None), SERIAL)
-        with self.assertRaisesRegex(ValueError, "未连接所选"):
-            keep_emulator._select_serial(self.adb, "emulator-5556")
+        self.assertEqual(keep_emulator._select_serials(self.adb, []), [SERIAL])
+        with self.assertRaisesRegex(ValueError, "emulator-5556（offline）"):
+            keep_emulator._select_serials(self.adb, ["emulator-5556"])
+        with self.assertRaisesRegex(ValueError, "emulator-5558（未出现在 adb devices 中）"):
+            keep_emulator._select_serials(self.adb, ["emulator-5558"])
 
     @patch.object(keep_emulator, "_adb_output")
     def test_multiple_devices_require_explicit_serial(self, adb_output):
         adb_output.return_value = b"emulator-5554\tdevice\n127.0.0.1:5557\tdevice\n"
         with self.assertRaisesRegex(ValueError, "多个本地模拟器"):
-            keep_emulator._select_serial(self.adb, None)
-        self.assertEqual(keep_emulator._select_serial(self.adb, "127.0.0.1:5557"), "127.0.0.1:5557")
+            keep_emulator._select_serials(self.adb, [])
+        serials = ["127.0.0.1:5557", SERIAL]
+        self.assertEqual(keep_emulator._select_serials(self.adb, [*serials, SERIAL]), serials)
+        self.assertTrue(all(c == call(self.adb, "devices") for c in adb_output.call_args_list))
+
+    @patch.object(keep_emulator, "_adb_output")
+    def test_explicit_loopback_reconnects_only_requested_target(self, adb_output):
+        endpoint = "127.0.0.1:5557"
+        adb_output.side_effect = [
+            b"emulator-5554\tdevice\n",
+            b"connected to 127.0.0.1:5557\n",
+            b"emulator-5554\tdevice\n127.0.0.1:5557\tdevice\n",
+        ]
+
+        self.assertEqual(keep_emulator._select_serials(self.adb, [endpoint]), [endpoint])
+        self.assertEqual(adb_output.call_args_list, [
+            call(self.adb, "devices"), call(self.adb, "connect", endpoint), call(self.adb, "devices"),
+        ])
+
+    @patch.object(keep_emulator, "_adb_output")
+    def test_only_online_loopback_is_accepted_even_when_connect_command_exits_cleanly(self, adb_output):
+        endpoint = "127.0.0.1:5557"
+        adb_output.side_effect = [b"", b"failed to connect: connection refused", b""]
+
+        with self.assertRaisesRegex(ValueError, "connection refused"):
+            keep_emulator._select_serials(self.adb, [endpoint])
+
+        adb_output.reset_mock(side_effect=True)
+        adb_output.return_value = b"192.168.1.5:5557\tdevice\n"
+        with self.assertRaisesRegex(ValueError, "无效的本地模拟器地址"):
+            keep_emulator._select_serials(self.adb, ["192.168.1.5:5557"])
+        adb_output.assert_called_once_with(self.adb, "devices")
+
+    @patch.object(keep_emulator, "_adb_output", return_value=b"emulator-5554\tdevice\nemulator-5556\tdevice\n")
+    @patch.object(keep_emulator, "_check_tracker")
+    @patch.object(keep_emulator, "_register")
+    def test_register_can_create_two_separately_named_bindings(self, register, check_tracker, _adb_output):
+        self.adb.parent.mkdir()
+        self.adb.touch()
+        command = ["automas_keep_emulator", "register", "--adb", str(self.adb),
+                   "--serial", SERIAL, "--serial", "emulator-5556"]
+        with patch("sys.argv", command), redirect_stdout(io.StringIO()) as output:
+            self.assertEqual(keep_emulator.main(), 0)
+
+        self.assertEqual(register.call_args_list, [call(PORT, self.adb, SERIAL), call(PORT, self.adb, "emulator-5556")])
+        check_tracker.assert_called_once_with(self.adb)
+        self.assertIn("track-devices | emulator-5554", output.getvalue())
+        self.assertIn("track-devices | emulator-5556", output.getvalue())
 
     @patch.object(keep_emulator.subprocess, "Popen")
     def test_only_adb_monitor_is_stopped_after_probe(self, popen):

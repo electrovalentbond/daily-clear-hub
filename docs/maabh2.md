@@ -26,6 +26,8 @@ $MaaBh2Root
 
 需要在任务结束或失败后保留画面时，可选择 [保留雷电模式](automas-keep-emulator.md)，手动打开实例并进入主页后再运行托管。
 
+崩坏学园 2 和公主连结用不同的雷电实例时，需要为两款游戏分别登记并选择各自的 ADB 序列号。遇到「找不到 emulator-5556」时，可先核对当前实例的 ADB 状态。[双实例绑定](automas-keep-emulator.md#两款游戏分开使用雷电实例) · [指定实例连接排查](automas-keep-emulator.md#找不到指定的-adb-实例)
+
 完成托管后，回到 Hub 仓库执行检查及单款日常。
 
 ```powershell
