@@ -61,7 +61,7 @@ git pull --ff-only
 两款模拟器游戏可以共用同一个雷电实例。在左侧「模拟器管理」点「自动搜索模拟器」并导入，再在两个托管的「控制配置」选同一个「模拟器」和「模拟器实例」，各自填写游戏包名。[模拟器管理](https://doc.auto-mas.top/docs/advanced-features/emulator.html)
 
 - **崩坏 3** 导入 Maa_bbb，选择「桌面端」和匹配的资源，简中键鼠使用「键鼠操作」。到「控制配置 → PC 游戏启动方式」选择「由 MAS 启动和关闭游戏」，再选客户端的「游戏可执行文件」。任务可从作战任务领奖和邮件领取开始。[Maa_bbb 设置](maa-upstream.md#崩坏-3)
-- **终末地** 导入 MaaEnd，PC 官服选择 `Win32-Front` 和「官服」。在「PC 游戏启动方式」选择「由 MAS 启动和关闭游戏」，指定 `Endfield.exe`。任务队列可添加日常奖励、清理智和基建。若客户端要求通过官方启动器，改用「MaaEnd脚本」托管，选择已有 MaaEnd 目录和 `Endfield.exe`，将「游戏启动方式」设为「启动器启动」，再把这个托管加入同一队列。前台控制期间保持桌面解锁。[MaaEnd 设置](maa-upstream.md#明日方舟终末地) · [官方启动器设置](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/frontend/src/views/EditView/Script/components/MaaEndLauncherSection.vue)
+- **终末地** 导入 MaaEnd，PC 官服选择 `Win32-Front` 和「官服」。在「PC 游戏启动方式」选择「由脚本自身控制游戏」。打开账号的「任务队列」，添加并启用「🚀启动游戏（PC）」，区服选择「国服 (官方启动器)」，启动器路径先用「自动判断」。它会通过官方启动器打开游戏，再运行日常奖励、清理智和基建等已选任务。前台控制期间保持桌面解锁。[启动器设置及排查](maa-upstream.md#明日方舟终末地)
 - **崩坏学园 2** 导入 MaaBH2，选「雷电模拟器」和「默认」，绑定已登录的模拟器实例并填写对应渠道包名。B 服用 `com.miHoYo.HSoDv2BiliBiliRelease`。AUTO-MAS 会启动绑定的游戏，任务队列可以从「10. 每日每周任务奖励领取」开始。[MaaBH2 设置](maabh2.md)
 - **公主连结 B 服** 导入 `pcr AUTO-MAS project:` 后面的目录，选「安卓模拟器」和「哔哩哔哩国服」，绑定已登录的模拟器实例。「游戏包名」留空即可，pcr-script 会启动 B 服客户端。在账号的任务队列添加「公主连结日常」，展开「日常事项」勾选日程表、任务领奖和非体力礼物。日程表的扫荡项目和资源用量沿用游戏内设置。[公主连结配置](pcr-upstream.md)
 

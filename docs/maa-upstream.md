@@ -74,7 +74,13 @@ Get-ChildItem -LiteralPath $EndfieldRoot -Filter 'interface.json' -File -Recurse
     Select-Object -ExpandProperty DirectoryName
 ```
 
-同样新建 **MFW 脚本**，项目目录填写 MaaEnd 的目录，给托管命名如 `Hub 终末地`。PC 客户端选择 `Win32-Front`（前台控制）和 v3.2.0 声明的「官服」资源。预先启动并登录游戏时，选择接管已运行窗口，在任务队列选日常奖励及需要的可选项。清理智、基建等使用 MaaEnd 对应任务和选项，先逐项试跑。Win32 前台控制期间保持桌面解锁并让出键鼠。[MaaEnd 使用文档](https://github.com/MaaEnd/MaaEnd/tree/v3.2.0/docs/zh_cn) · [控制器声明](https://github.com/MaaEnd/MaaEnd/blob/v3.2.0/assets/interface.json)
+在 AUTO-MAS 新建 **MFW 脚本**，项目目录填写 MaaEnd 的目录，给托管命名如 `Hub 终末地`。PC 官服选择 `Win32-Front`（「电脑端-前台」）和「官服」资源。现有 MFW 托管可以直接修改。[MaaEnd 控制器与前置任务声明](https://github.com/MaaEnd/MaaEnd/blob/v3.2.0/assets/interface.json)
+
+1. 在「控制配置 → PC 游戏启动方式」选「由脚本自身控制游戏」。部分 PC 客户端校验启动来源，直接运行 `Endfield.exe` 会出现「请通过官方启动器打开游戏」。[MaaEnd Issue #6501](https://github.com/MaaEnd/MaaEnd/issues/6501#issuecomment-6205465063) · [启动失败记录](https://github.com/MaaEnd/MaaEnd/issues/6567)
+2. 打开启用账号的「任务队列」，点「添加任务」并选「🚀启动游戏（PC）」。国服官服选择「国服 (官方启动器)」，「启动器路径」先用「自动判断」。找不到启动器时，切换到「手动填写」并选官方启动器的 `Launcher.exe`。这个前置任务会打开启动器并点击「开始游戏」，然后 AUTO-MAS 再连接游戏窗口。[MaaEnd 启动前置任务](https://github.com/MaaEnd/MaaEnd/pull/6487) · [AUTO-MAS 前置任务执行顺序](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/tools/embedded/runner_task.py#L873-L889)
+3. 保留日常奖励等任务，关闭之前残留的弹窗和游戏窗口，单独试跑一次托管。Win32 前台控制期间保持桌面解锁并让出键鼠。
+
+使用专项「MaaEnd脚本」的托管时，在「游戏配置」选择「游戏启动方式 → 启动器启动」，「游戏路径」选择游戏本体 `Endfield.exe`，供 AUTO-MAS 识别启动器。也可以在「终末地官方启动器」处选择「手动指定」，选官方 `Launcher.exe`。[AUTO-MAS MaaEnd 专项启动方式](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/frontend/src/views/EditView/Script/components/MaaEndLauncherSection.vue) · [经官方启动器启动的实现](https://github.com/AUTO-MAS-Project/AUTO-MAS/pull/1394)
 
 两款游戏都先等待 AUTO-MAS 的「运行环境」检查通过。账号任务可以在 AUTO-MAS 内逐项选择，也可在 MFW 的导入向导里复用受支持的外壳已保存配置。先从 AUTO-MAS 的调度台运行最小任务，确认资源、窗口和游戏账号正确。只需保持 AUTO-MAS 开着，Maa_bbb 和 MaaEnd 自带的窗口可关闭。[AUTO-MAS MFW 配置指南](https://doc.auto-mas.top/docs/script-guide/maafw.html) · [外壳配置导入接口](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/api.py#L364-L396)
 
