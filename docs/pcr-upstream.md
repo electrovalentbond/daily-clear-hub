@@ -41,7 +41,16 @@ git pull --ff-only
 
 在公主连结账号的「任务队列 → 添加任务 → 挑战与活动」添加「活动日常」，将「活动范围」设为「仅剧情」，并排在「快捷扫荡」前。新剧情活动开放时，脚本会核对一键扫荡列表中的 H-1～H-3 和剩余次数，扫荡还有次数的关卡。三关各三次需要 180 体力和 9 张扫荡券。选择包含多种活动的范围时，前序活动未核验完成会暂停后续活动。[困难扫荡实现](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/tasks/event_sweep.py#L42-L130) · [活动执行顺序](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/tasks/task_activity.py#L68-L125)
 
-复刻困难关卡的每日扫荡和非常困难首领的扫荡目前需要手动处理。若新剧情活动仍未扫荡，在 AUTO-MAS 本次运行的 `run.worker.log` 或上游运行目录的 `console.log`、`summary.json` 中查找「困难扫荡尚未完整开放/无法定位」「困难关卡剩余次数无法确认」或「体力不足以完成困难批量扫荡」。三关都为 `0/3` 时，日志显示「三个困难关卡今日次数已用完」。[复刻处理](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/tasks/task_revival_event.py#L84-L115) · [剧情活动首领处理](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/tasks/event_battle.py#L445-L486)
+若新剧情活动仍未扫荡，在 AUTO-MAS 本次运行的 `run.worker.log` 或上游运行目录的 `console.log`、`summary.json` 中查找「困难扫荡尚未完整开放/无法定位」「困难关卡剩余次数无法确认」或「体力不足以完成困难批量扫荡」。三关都为 `0/3` 时，日志显示「三个困难关卡今日次数已用完」。
+
+### 复刻活动日常扫荡
+
+在同一账号的「任务队列 → 添加任务 → 挑战与活动」按需启用下列两项。先扫困难关卡可以补充首领挑战券，两项都可排在「快捷扫荡」前。
+
+1. **复刻活动困难关卡扫荡**使用现有体力和扫荡券。地图式复刻逐关核对困难 `1-1`～`1-5`，列表式复刻使用困难关卡的一键扫荡。先在游戏里打到三星以解锁扫荡。任务会核对关卡编号、剩余次数和消耗。
+2. **复刻活动非常困难首领扫荡**适用于带首领挑战券的旧制复刻。游戏详情使用「高难」或 `VERY HARD` 标识。游戏开放扫荡且票券足够时，任务按当日剩余次数最多扫荡一次。新版剧情活动的首领战已改为剧本、特别战斗等难度，按国服规则取消了首领扫荡。[国服活动改版说明](https://www.sina.cn/news/detail/5279970805942965.html) · [旧制复刻规则示例](https://www.sina.cn/news/detail/5363712602671939.html)
+
+复刻开放时间、关卡和资源以本期客户端为准。遇到无法核对的界面时，查看 `run.worker.log` 的任务原因，以及 pcr-script 对应运行目录下的 `current.png` 或任务截图。已有托管需按上方命令更新项目，再在 AUTO-MAS 点「立即同步」。
 
 ### 查看一次托管失败的原因
 

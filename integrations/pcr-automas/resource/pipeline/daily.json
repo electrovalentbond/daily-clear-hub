@@ -101,6 +101,20 @@
             "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "clear_campaign_first_time", "args": [false]}}
         }
     },
+    "DailyClearPcrRevivalHardSweep": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "sweep_revival_hard", "args": []}}
+        }
+    },
+    "DailyClearPcrVeryHardBossSweep": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "sweep_very_hard_boss", "args": []}}
+        }
+    },
     "DailyClearPcrAbyssSubjugation": {
         "recognition": "DirectHit",
         "action": {

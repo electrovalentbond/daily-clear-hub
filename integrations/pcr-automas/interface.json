@@ -2,7 +2,7 @@
     "interface_version": 2,
     "name": "DailyClearPcr",
     "label": "公主连结 B 服",
-    "version": "1.2.0",
+    "version": "1.3.0",
     "description": "在绑定的模拟器中登录 B 服。添加需要的任务，在队列中逐项启用或跳过。",
     "controller": [
         {
@@ -112,6 +112,20 @@
             "entry": "DailyClearPcrCampaignFirstClear",
             "group": ["Battle"],
             "description": "核对队伍后推进普通和困难关卡，再处理困难扫荡与奖励。首通会使用现有体力。"
+        },
+        {
+            "name": "DailyClearPcrRevivalHardSweep",
+            "label": "复刻活动困难关卡扫荡",
+            "entry": "DailyClearPcrRevivalHardSweep",
+            "group": ["Battle"],
+            "description": "按剩余次数扫荡已解锁的复刻活动困难关卡，使用现有体力和扫荡券。"
+        },
+        {
+            "name": "DailyClearPcrVeryHardBossSweep",
+            "label": "复刻活动非常困难首领扫荡",
+            "entry": "DailyClearPcrVeryHardBossSweep",
+            "group": ["Battle"],
+            "description": "旧版复刻活动的 VH 首领已解锁扫荡时，使用现有讨伐券和扫荡券。"
         },
         {
             "name": "DailyClearPcrAbyssSubjugation",

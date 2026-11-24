@@ -25,6 +25,7 @@ NO_ARGUMENT_TASKS = frozenset({
     "schedule", "normal_gacha", "arena", "princess_arena", "research", "adventure_daily",
     "recollection", "dawn_labyrinth", "get_quest_reward", "abyss_subjugation", "team_battle",
     "luna_tower_clean", "luna_tower_climb", "upgrade_all_characters", "claim_alchemy_reward",
+    "sweep_revival_hard", "sweep_very_hard_boss",
 })
 TASK_TIMEOUTS = {
     "campaign_clean": 9000,

@@ -218,37 +218,47 @@ class TestPCRIndividualJob(unittest.TestCase):
         with self.assertRaisesRegex(self.EventUIError, "模拟器截图失败"):
             pcr_automas_job.restore_schedule_counter(task, latest)
 
-    def test_registers_the_alchemy_task_in_the_individual_worker(self):
+    def test_registers_hub_tasks_in_the_individual_worker(self):
         class ADBDriver:
             adb_path = "adb.exe"
             device_name = "emulator-5556"
 
-        task_name = "claim_alchemy_reward"
-        task_class = type("ClaimAlchemyReward", (), {})
-        registered = {}
+        for task_name, module, class_name in (
+            ("claim_alchemy_reward", "core.pcr_alchemy_reward", "ClaimAlchemyReward"),
+            ("sweep_revival_hard", "core.pcr_revival_sweep", "SweepRevivalHard"),
+            ("sweep_very_hard_boss", "core.pcr_vh_sweep", "SweepVeryHardBoss"),
+        ):
+            with self.subTest(task=task_name):
+                task_class = type(class_name, (), {})
+                registered = {}
 
-        def register(name, *, requires_home):
-            self.assertTrue(requires_home)
-            return lambda cls: registered.setdefault(name, cls)
+                def register(name, *, requires_home):
+                    self.assertTrue(requires_home)
+                    return lambda cls: registered.setdefault(name, cls)
 
-        report = {"status": "complete", "verified": True, "tasks": [{"task": task_name, "status": "complete"}]}
-        runtime = SimpleNamespace(
-            load_config=Mock(return_value={"Task": {1: [[task_name]]}, "Extra": {"adb_serial": "emulator-5556"}}),
-            print_report=Mock(), run_script=Mock(return_value=report), select_driver=Mock(return_value=ADBDriver()),
-            summarize_daily=Mock(),
-        )
-        modules = {
-            "core.pcr_alchemy_reward": SimpleNamespace(ClaimAlchemyReward=task_class),
-            "pcrscript.driver": SimpleNamespace(ADBDriver=ADBDriver),
-            "pcrscript.run_session": SimpleNamespace(RunSession=lambda _: nullcontext(), daily_result=Mock()),
-            "pcrscript.runtime": runtime,
-            "pcrscript.tasks": SimpleNamespace(TimeLimitTask=type("TimeLimitTask", (), {}),
-                                               find_taskclass=registered.get, register=register),
-        }
-        with patch.dict(sys.modules, modules), patch.object(sys, "path", sys.path.copy()), patch.object(pcr_automas_job.subprocess, "run"):
-            pcr_automas_job.main(["--config", "daily_config.yml"])
-        self.assertIs(registered[task_name], task_class)
-        runtime.print_report.assert_called_once_with(report)
+                report = {"status": "complete", "verified": True, "tasks": [{"task": task_name, "status": "complete"}]}
+                config = {"Task": {1: [[task_name]]}, "Extra": {"adb_serial": "emulator-5556"}}
+                runtime = SimpleNamespace(
+                    load_config=Mock(return_value=config), print_report=Mock(), run_script=Mock(return_value=report),
+                    select_driver=Mock(return_value=ADBDriver()), summarize_daily=Mock(),
+                )
+                modules = {
+                    module: SimpleNamespace(**{class_name: task_class}),
+                    "pcrscript.driver": SimpleNamespace(ADBDriver=ADBDriver),
+                    "pcrscript.run_session": SimpleNamespace(RunSession=lambda _: nullcontext(), daily_result=Mock()),
+                    "pcrscript.runtime": runtime,
+                    "pcrscript.tasks": SimpleNamespace(TimeLimitTask=type("TimeLimitTask", (), {}),
+                                                       find_taskclass=registered.get, register=register),
+                }
+                with (
+                    patch.dict(sys.modules, modules),
+                    patch.object(sys, "path", sys.path.copy()),
+                    patch.object(pcr_automas_job.subprocess, "run"),
+                ):
+                    pcr_automas_job.main(["--config", "daily_config.yml"])
+                self.assertIs(registered[task_name], task_class)
+                runtime.run_script.assert_called_once_with(config)
+                runtime.print_report.assert_called_once_with(report)
 
     def test_schedule_failure_report_is_printed_before_session_exit(self):
         class ADBDriver:
