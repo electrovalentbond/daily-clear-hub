@@ -225,6 +225,7 @@ class TestPCRIndividualJob(unittest.TestCase):
 
         for task_name, module, class_name in (
             ("claim_alchemy_reward", "core.pcr_alchemy_reward", "ClaimAlchemyReward"),
+            ("claim_gourmet_rewards", "core.pcr_gourmet_rewards", "ClaimGourmetRewards"),
             ("sweep_revival_hard", "core.pcr_revival_sweep", "SweepRevivalHard"),
             ("sweep_very_hard_boss", "core.pcr_vh_sweep", "SweepVeryHardBoss"),
         ):

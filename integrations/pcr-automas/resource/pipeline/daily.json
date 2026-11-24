@@ -46,6 +46,13 @@
             "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "claim_alchemy_reward", "args": []}}
         }
     },
+    "DailyClearPcrGourmetRewards": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearPcr", "custom_action_param": {"task": "claim_gourmet_rewards", "args": []}}
+        }
+    },
     "DailyClearPcrFreeGacha": {
         "recognition": "DirectHit",
         "action": {

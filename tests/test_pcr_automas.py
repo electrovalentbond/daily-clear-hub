@@ -106,8 +106,9 @@ class PcrAutomasTests(unittest.TestCase):
             else:
                 row, _ = self.agent.individual_task(data)
                 self.assertEqual(name, row[0])
-        self.assertEqual(23, len(names))
+        self.assertEqual(24, len(names))
         self.assertIn("claim_alchemy_reward", names)
+        self.assertIn("claim_gourmet_rewards", names)
         self.assertEqual((("quick_clean", 2), {}), self.agent.individual_task({"task": "quick_clean", "args": [2]}))
 
     def test_revival_sweeps_use_independent_actions_in_the_event_group(self):
