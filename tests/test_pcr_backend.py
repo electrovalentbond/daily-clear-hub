@@ -143,6 +143,14 @@ class TestPCRBackend(unittest.TestCase):
 
 
 class TestPCRIndividualJob(unittest.TestCase):
+    class EventUIError(RuntimeError):
+        pass
+
+    def setUp(self):
+        self.enterContext(patch.dict(sys.modules, {
+            "pcrscript.game_ui.screen": SimpleNamespace(EventUIError=self.EventUIError),
+        }))
+
     def test_schedule_searches_below_notification_rows(self):
         notifications, schedule = object(), object()
         ui = Mock(last=notifications, spec=["scrollbar_bounds", "scrollbar", "last"])
@@ -173,6 +181,39 @@ class TestPCRIndividualJob(unittest.TestCase):
                 task = SimpleNamespace(book=lambda _: book, completion=lambda _: None, ui=ui)
                 self.assertIs(pcr_automas_job.restore_schedule_counter(task, screen), screen)
                 ui.scrollbar.assert_not_called()
+
+    def test_schedule_drags_verified_thumb_if_the_list_body_does_not_move(self):
+        settlement, latest, counted = object(), object(), object()
+        ui = Mock(last=settlement)
+        ui.scrollbar_bounds.return_value = (229, 353)
+        task = SimpleNamespace(book=lambda _: True, completion=lambda view: (7, 7) if view is counted else None, ui=ui)
+
+        def scroll(view, track, direction, *, reached, content_distance, content_roi):
+            self.assertEqual(direction, -1)
+            if content_distance is not None:
+                self.assertIs(view, settlement)
+                ui.last = latest
+                raise self.EventUIError("列表后台滑动未生效")
+            self.assertIs(view, latest)
+            ui.last = counted
+            return reached(counted)
+
+        ui.scrollbar.side_effect = scroll
+        self.assertIs(pcr_automas_job.restore_schedule_counter(task, settlement), counted)
+        self.assertEqual([call.kwargs["content_distance"] for call in ui.scrollbar.call_args_list], [220, None])
+
+    def test_locked_settlement_returns_latest_frame_for_another_poll(self):
+        settlement, latest = object(), object()
+        ui = Mock(last=latest)
+        ui.scrollbar_bounds.return_value = (229, 353)
+        ui.scrollbar.side_effect = self.EventUIError("列表后台滑动未生效")
+        task = SimpleNamespace(book=lambda _: True, completion=lambda _: None, ui=ui)
+
+        self.assertIs(pcr_automas_job.restore_schedule_counter(task, settlement), latest)
+        self.assertEqual(ui.scrollbar.call_count, 2)
+        ui.scrollbar.side_effect = self.EventUIError("模拟器截图失败")
+        with self.assertRaisesRegex(self.EventUIError, "模拟器截图失败"):
+            pcr_automas_job.restore_schedule_counter(task, latest)
 
     def test_schedule_failure_report_is_printed_before_session_exit(self):
         class ADBDriver:

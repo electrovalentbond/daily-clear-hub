@@ -18,6 +18,8 @@ Daily Clear Hub 可以直接运行 [pcr-script](https://github.com/Gibberer/pcr-
 
 任务列表覆盖上游日常指南中的领奖、扫荡、竞技场、调查、探险、活动、塔、团队战和商店等条目。扫荡、购买、消耗材料和高难任务需要主动添加。快捷扫荡可指定游戏内预设，商店购买必须填写商品规则。使用消耗类任务前先核对选项，在托管「运行配置」把「代理重试次数限制」设为 `1` 可避免失败后自动重试。长任务受托管「单次运行时间限制」约束。[pcr-script 任务指南](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/docs/guides/tasks.md)
 
+用剩余体力扫已通关的指定关卡时，在游戏的「冒险 → 快捷扫荡」保存关卡和次数，再在 AUTO-MAS 的「添加任务 → 扫荡与资源」选择「快捷扫荡」，并选相同的预设编号。希望优先做活动或调查时，将「活动日常」「圣迹与神殿调查」排在快捷扫荡前。仅有困难关卡掉落加倍时，上游会用预设 3，请一起核对。[快捷扫荡实现](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/pcrscript/tasks/task_adventure.py#L53-L104)
+
 运行时使用 AUTO-MAS 当前绑定实例的 ADB 路径和序列号。每项独立写运行记录，活动未开放时会报告跳过。部分上游旧任务只提供「执行结束，结果未核验」，详情见 AUTO-MAS 日志和 pcr-script 目录的 `cache/daily/runs/`。
 
 需要在任务结束或失败后保留雷电画面时，可以改用 [保留雷电模式](automas-keep-emulator.md)。
@@ -27,6 +29,8 @@ Daily Clear Hub 可以直接运行 [pcr-script](https://github.com/Gibberer/pcr-
 ### 查看一次托管失败的原因
 
 新版「执行游戏内日程表」会在书页里上下查找「交给可可萝」分区的完成数。顶部「来自可可萝的通知」有自己的计数。脚本核实到「交给可可萝」的未完成进度后，才会点「一键自动」。已有的独立日程表托管只需在 Hub 仓库运行 `git pull --ff-only`，然后重跑此任务。若数量仍无法核实，打开日程表并向下滚动，确认「交给可可萝」分区存在。[上游的日程表分区说明](https://github.com/Gibberer/pcr-script/blob/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3/docs/game-knowledge/shop-quests.md#日程表)
+
+结算时如果列表滑动未确认，脚本会用已识别的滚动条尝试恢复视图；界面暂时无法滚动时会继续等待结算。完成情况仍以实际读取到的「交给可可萝」计数为准。
 
 账号汇总只显示「停在 `DailyClearPcrRun`」时，打开 AUTO-MAS「历史记录」对应的运行详情，从附件打开 `run.worker.log`。搜索 `公主连结运行失败`、`失败原因`、`pcr-script 输出` 或 `[Agent:`。运行结束后，详细日志通常会归档到 AUTO-MAS 安装目录的 `history`。磁盘上的附件可能按数字编号。[AUTO-MAS 日志归档](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/core/history.py#L435-L489)
 

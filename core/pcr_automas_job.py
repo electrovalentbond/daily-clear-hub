@@ -10,10 +10,34 @@ from pathlib import Path
 
 def restore_schedule_counter(task, screen):
     """Find the saved schedule counter, including below the notification rows."""
+    from pcrscript.game_ui.screen import EventUIError
+
     track = (769, 97, 784, 445)
+    content = (195, 97, 765, 445)
 
     def counter_visible(view):
         return task.book(view) and task.completion(view) is not None
+
+    def scroll(view, direction):
+        # Try the list body for an overlapping scan, then the thumb if the
+        # game ignored that gesture while returning from the result screen.
+        for distance in (220, None):
+            try:
+                return task.ui.scrollbar(
+                    view, track, direction, reached=counter_visible,
+                    content_distance=distance, content_roi=content,
+                )
+            except EventUIError as error:
+                if str(error) != "列表后台滑动未生效":
+                    raise
+                view = task.ui.last if task.ui.last is not None else view
+                if counter_visible(view):
+                    return True
+                if not task.book(view) or task.ui.scrollbar_bounds(view, track) is None:
+                    break
+        # A transient lock during settlement is not a failed schedule. The
+        # upstream task will keep polling and only finish on verified counts.
+        return None
 
     # Completion results can leave the book scrolled down. Start by looking
     # upward, then scan down with overlapping views of the list.
@@ -23,12 +47,11 @@ def restore_schedule_counter(task, screen):
                 return screen
             if task.ui.scrollbar_bounds(screen, track) is None:
                 return screen
-            moved = task.ui.scrollbar(
-                screen, track, direction, reached=counter_visible,
-                content_distance=220, content_roi=(195, 97, 765, 445),
-            )
+            moved = scroll(screen, direction)
             if task.ui.last is not None:
                 screen = task.ui.last
+            if moved is None:
+                return screen
             if not moved:
                 break
     return screen
