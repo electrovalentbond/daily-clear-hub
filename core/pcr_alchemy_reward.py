@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from pcrscript.game_ui.screen import EventUI, EventUIError
+from pcrscript.game_ui.screen import EventUI, EventUIError, normalized
 from pcrscript.run_session import clock as time
 from pcrscript.tasks import BaseTask
 from pcrscript.templates import ImageTemplate
@@ -13,7 +13,10 @@ ROOM_CONTENT = (25, 66, 935, 403)
 REWARD_PANEL = (270, 330, 690, 418)
 STORY_PROMPT = (205, 65, 755, 340)
 STORY_CONFIRM = (480, 300, 745, 500)
-SKIP_TEXT = r"剧情梗概|跳过(?:这个|这段|当前)?(?:剧情|对话|对白|视频)"
+STORY_LINE = (175, 418, 795, 487)
+STORY_ARROW = (751, 475, 811, 523)
+STORY_ACTION_DELAY = 1.6
+SKIP_TEXT = r"剧情梗概|(?:剧情|对话)跳过|跳过(?:这个|这段|这次|此段|该段|当前)?(?:剧情|对话|对白|视频)"
 
 
 def in_room(screen):
@@ -72,6 +75,30 @@ def reward_visible(screen):
     )
 
 
+def story_advance(image):
+    """Recognize the small pink, downward-facing arrow on the dialogue panel."""
+    import cv2 as cv
+    import numpy as np
+
+    left, top, right, bottom = STORY_ARROW
+    hsv = cv.cvtColor(image[top:bottom, left:right], cv.COLOR_BGR2HSV)
+    mask = cv.inRange(hsv, (136, 25, 173), (179, 160, 255))
+    _, labels, stats, centers = cv.connectedComponentsWithStats(mask)
+    candidates = []
+    for index, (x, y, width, height, area) in enumerate(stats[1:], 1):
+        if not (9 <= width <= 25 and 6 <= height <= 18 and 1.15 <= width / height <= 2.2):
+            continue
+        if not .40 <= area / (width * height) <= .78:
+            continue
+        component = labels[y:y + height, x:x + width] == index
+        upper = np.count_nonzero(component[:height // 2])
+        lower = np.count_nonzero(component[-height // 2:])
+        if upper > 1.4 * lower:
+            center_x, center_y = centers[index]
+            candidates.append((left + round(center_x), top + round(center_y)))
+    return candidates[0] if len(candidates) == 1 else None
+
+
 class ClaimAlchemyReward(BaseTask):
     def __init__(self, robot):
         super().__init__(robot)
@@ -81,22 +108,47 @@ class ClaimAlchemyReward(BaseTask):
     def wait_through_story(self, predicate, description, *, timeout):
         skip_requested = False
         skip_confirmed = False
+        last_advanced_line = None
+        advances_on_line = 0
+        action_after = 0.0
 
         def ready(screen):
-            nonlocal skip_requested, skip_confirmed
+            nonlocal skip_requested, skip_confirmed, last_advanced_line, advances_on_line, action_after
+            now = time.monotonic()
             if screen.find(SKIP_TEXT, STORY_PROMPT):
                 if not skip_confirmed and (button := screen.find("确定|确认|跳过", STORY_CONFIRM, exact=True)):
                     self.ui.save("alchemy_story_confirm", screen)
                     self.ui.click(button)
                     skip_confirmed = True
+                    action_after = now + STORY_ACTION_DELAY
                 return False
-            if screen.battle_dialogue():
-                if not skip_requested and not skip_confirmed and (button := self.story_skip.match(screen.image)):
-                    self.ui.save("alchemy_story_skip", screen)
-                    self.ui.click(button)
-                    skip_requested = True
+            if not screen.battle_dialogue():
+                return predicate(screen)
+            if now < action_after or screen.find("确定|确认|取消", STORY_CONFIRM, exact=True):
                 return False
-            return predicate(screen)
+
+            advance = story_advance(screen.image)
+            line = normalized(screen.text(STORY_LINE)) if advance else ""
+            if last_advanced_line and line and line != last_advanced_line:
+                last_advanced_line = None
+                advances_on_line = 0
+                skip_requested = False
+                skip_confirmed = False
+
+            if not (skip_requested or skip_confirmed) and (button := self.story_skip.match(screen.image)):
+                self.ui.save("alchemy_story_skip", screen)
+                self.ui.click(button)
+                skip_requested = True
+                action_after = now + STORY_ACTION_DELAY
+            elif advance and line and advances_on_line < 2:
+                # Some room dialogues retain the skip icon but ignore a tap.
+                # Advance only when the scene exposes its own continue arrow.
+                self.ui.save("alchemy_story_advance", screen)
+                self.ui.click(advance)
+                last_advanced_line = line
+                advances_on_line += 1
+                action_after = now + STORY_ACTION_DELAY
+            return False
 
         return self.ui.wait(ready, description, timeout=timeout)
 
@@ -122,7 +174,7 @@ class ClaimAlchemyReward(BaseTask):
             empty_frames += 1
             return empty_frames >= 2 and now >= deadline
 
-        screen = self.wait_through_story(ready, "识别炼金堂对话气泡", timeout=35)
+        screen = self.wait_through_story(ready, "识别炼金堂对话气泡", timeout=100)
         return screen, marker
 
     def run(self):

@@ -371,17 +371,25 @@ class TestAlchemyReward(unittest.TestCase):
         def battle_dialogue(self):
             return self.story
 
+        def text(self, roi):
+            left, top, right, bottom = roi
+            return " ".join(text for text, x, y in self.items if left <= x <= right and top <= y <= bottom)
+
     def setUp(self):
         self.ui = Mock()
         self.skip = Mock()
+        self.clock = Mock(side_effect=count(step=8).__next__)
         self.enterContext(patch.dict(sys.modules, {
-            "pcrscript.game_ui.screen": SimpleNamespace(EventUI=lambda *_: self.ui, EventUIError=self.UIError),
-            "pcrscript.run_session": SimpleNamespace(clock=SimpleNamespace(monotonic=count(step=8).__next__, sleep=Mock())),
+            "pcrscript.game_ui.screen": SimpleNamespace(
+                EventUI=lambda *_: self.ui, EventUIError=self.UIError, normalized=lambda text: text.replace(" ", ""),
+            ),
+            "pcrscript.run_session": SimpleNamespace(clock=SimpleNamespace(monotonic=self.clock, sleep=Mock())),
             "pcrscript.tasks": SimpleNamespace(BaseTask=MockTask),
             "pcrscript.templates": SimpleNamespace(ImageTemplate=Mock(return_value=self.skip)),
         }))
         self.alchemy = importlib.import_module("core.pcr_alchemy_reward")
         self.marker = self.enterContext(patch.object(self.alchemy, "dialogue_marker"))
+        self.advance = self.enterContext(patch.object(self.alchemy, "story_advance", return_value=None))
         self.task = self.alchemy.ClaimAlchemyReward(SimpleNamespace(driver=object()))
         self.home = self.Screen(("我的主页", 80, 525), ("礼物", 910, 455), ("日程表", 765, 455), ("究极炼成", 616, 456))
         self.room = self.Screen(("究极炼成", 111, 32), ("相册", 614, 54), ("道具一览", 701, 53))
@@ -444,6 +452,32 @@ class TestAlchemyReward(unittest.TestCase):
         self.assertEqual([action.args[0] for action in self.ui.click.call_args_list],
                          [(616, 456), (901, 42), (587, 345)])
         self.marker.assert_not_called()
+
+    def test_ignored_skip_advances_visible_line_and_retries_skip_on_new_line(self):
+        self.marker.return_value = (825, 172)
+        next_line = self.Screen(("彩羽", 282, 404), ("玩法有点难呢。", 299, 433), story=True)
+        self.skip.match.return_value = (901, 42)
+        self.skip.match.side_effect = None
+        self.advance.return_value = (780, 497)
+        # The first repeated screenshot is too soon to conclude the skip failed.
+        self.clock.side_effect = [0, 1, 2, 3, 5, 6, 8]
+        self.queue_waits(
+            (self.room,), (self.room,),
+            (self.story, self.story, self.story, next_line, self.confirm, self.receipt),
+        )
+
+        self.assertEqual(self.task.run(), {"status": "complete"})
+        self.assertEqual([action.args[0] for action in self.ui.click.call_args_list],
+                         [(825, 172), (901, 42), (780, 497), (901, 42), (587, 345)])
+
+    def test_unchanged_dialogue_has_bounded_advances_without_assuming_reward(self):
+        self.marker.return_value = (825, 172)
+        self.advance.return_value = (780, 497)
+        self.queue_waits((self.room,), (self.room,), (self.story,) * 8)
+
+        self.assertEqual(self.task.run()["status"], "blocked")
+        self.assertEqual([action.args[0] for action in self.ui.click.call_args_list],
+                         [(825, 172), (901, 42), (780, 497), (780, 497)])
 
 
 class MockTask:

@@ -40,8 +40,8 @@ class Screen:
 def carnival_screen(section, *, enabled):
     rewards = section == "等级奖励"
     tab = "奖励" if rewards else "任务"
-    labels = [("美食嘉年华", 121, 34), ("任务", 793, 95), ("奖励", 906, 95),
-              ("全部收取", 834, 420)]
+    button = ("一键领取", 709, 426) if rewards else ("全部收取", 856, 426)
+    labels = [("美食嘉年华", 121, 34), ("任务", 877, 101), ("奖励", 794, 101), button]
     if not rewards:
         labels.extend([("每日任务", 371, 146), ("每周任务", 506, 146), ("挑战任务", 642, 146)])
     return Screen(*labels, selected=(tab, section), enabled=enabled)
@@ -64,6 +64,7 @@ class GourmetRewardsTest(unittest.TestCase):
         self.home_labels = (("我的主页", 80, 523), ("主菜单", 875, 525), ("日程表", 755, 455))
         self.home = Screen(*self.home_labels, ("美食嘉年华", 580, 455))
         self.receipt = Screen(("获得奖励", 473, 114), ("关闭", 481, 400))
+        self.level_receipt = Screen(("报酬获得", 473, 114), ("关闭", 481, 400))
 
     def queue_waits(self, *candidates):
         waiting = iter(candidates)
@@ -85,12 +86,13 @@ class GourmetRewardsTest(unittest.TestCase):
         for index, section in enumerate(sections):
             if index:
                 frames.append((carnival_screen(section, enabled=True),))
-            frames.extend(((self.receipt,), (carnival_screen(section, enabled=False),)))
+            receipt = self.level_receipt if section == "等级奖励" else self.receipt
+            frames.extend(((receipt,), (carnival_screen(section, enabled=False),)))
         self.queue_waits(*frames)
 
         self.assertEqual(self.task.run(), {"status": "complete", "claimed_sections": list(sections)})
         self.assertEqual(self.clicks(), ["美食嘉年华", "全部收取", "关闭", "每周任务", "全部收取", "关闭",
-                                         "挑战任务", "全部收取", "关闭", "奖励", "全部收取", "关闭"])
+                                         "挑战任务", "全部收取", "关闭", "奖励", "一键领取", "关闭"])
 
     def test_missing_entry_on_verified_home_is_skipped_without_clicking(self):
         home = Screen(*self.home_labels)
@@ -123,3 +125,15 @@ class GourmetRewardsTest(unittest.TestCase):
         with self.assertRaisesRegex(ScreenError, "核对每日任务领奖结果"):
             self.task.run()
         self.assertEqual(self.clicks(), ["全部收取"])
+
+    def test_checks_level_reward_region_when_full_screen_ocr_misses_button(self):
+        visible = carnival_screen("等级奖励", enabled=True)
+        level = Screen(("购买等级", 179, 406), ("前往购买", 656, 425), selected=("奖励",))
+        drained = carnival_screen("等级奖励", enabled=False)
+        self.ui.read_region.side_effect = lambda screen, _roi: visible if screen is level else screen
+        self.queue_waits((self.level_receipt,), (drained,))
+
+        self.assertEqual(self.task.claim(level, "等级奖励", lambda frame: "奖励" in frame.selected,
+                                         roi=self.gourmet.LEVEL_CLAIM), (drained, True))
+        self.ui.read_region.assert_called_with(level, self.gourmet.LEVEL_CLAIM)
+        self.assertEqual(self.clicks(), ["一键领取", "关闭"])

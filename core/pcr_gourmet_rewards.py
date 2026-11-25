@@ -13,7 +13,10 @@ ENTRY_LABEL = r"(?:美食)?嘉年华"
 MERGED_ENTRY = rf"({ENTRY_LABEL})(?:究极炼成|驾车游|商店|日程表)+"
 MAIN_TABS = (720, 65, 950, 134)
 TASK_TABS = (325, 110, 715, 178)
-CLAIM = (741, 360, 946, 482)
+TASK_CLAIM = (741, 360, 946, 482)
+# ViewSeasonPass places the level claim on the same row as the task claim,
+# about 148 pixels to its left at the OCR canvas size of 960×540.
+LEVEL_CLAIM = (620, 380, 799, 478)
 RECEIPT = (210, 15, 750, 210)
 RECEIPT_CLOSE = (346, 310, 620, 517)
 TASK_SECTIONS = ("每日任务", "每周任务", "挑战任务")
@@ -107,28 +110,31 @@ class ClaimGourmetRewards(BaseTask):
         self.ui.click(label)
         return self.ui.wait(active, f"切换到美食嘉年华「{name}」", timeout=12)
 
-    def claim(self, screen, section, active):
-        def ready(frame):
-            return active(frame) and frame.find(CLAIM_LABEL, CLAIM, exact=True)
+    def claim(self, screen, section, active, *, roi):
+        def claim_button(frame):
+            if not active(frame):
+                return None
+            button = frame.find(CLAIM_LABEL, roi, exact=True)
+            return button if button is not None else self.ui.read_region(frame, roi).find(CLAIM_LABEL, roi, exact=True)
 
-        screen = screen if ready(screen) else self.ui.wait(ready, f"读取{section}的全部收取按钮", timeout=12)
+        screen = screen if claim_button(screen) else self.ui.wait(claim_button, f"读取{section}的批量领奖按钮", timeout=12)
         for attempt in range(3):
-            button = screen.find(CLAIM_LABEL, CLAIM, exact=True)
+            button = claim_button(screen)
             if not screen.blue_button(button):
                 return screen, attempt > 0
             self.ui.save(f"gourmet_{section}_before_claim", screen)
             self.ui.click(button)
-            settled, close = self.wait_for_claim(section, ready)
+            settled, close = self.wait_for_claim(section, claim_button)
             self.ui.save(f"gourmet_{section}_receipt", settled)
             if close is None:
                 return settled, True
             self.ui.click(close)
-            screen = self.ui.wait(ready, f"返回{section}", timeout=12)
-        if screen.blue_button(screen.find(CLAIM_LABEL, CLAIM, exact=True)):
+            screen = self.ui.wait(claim_button, f"返回{section}", timeout=12)
+        if screen.blue_button(claim_button(screen)):
             raise EventUIError(f"{section}连续领取后仍有可领报酬")
         return screen, True
 
-    def wait_for_claim(self, section, ready):
+    def wait_for_claim(self, section, claim_button):
         disabled_since = None
         close = None
 
@@ -136,11 +142,11 @@ class ClaimGourmetRewards(BaseTask):
             nonlocal close, disabled_since
             if frame.find("持有上限", RECEIPT):
                 raise EventUIError(f"{section}奖励遇到持有上限")
-            receipt = frame.find("收取报酬|收取奖励|收取完成|获得奖励|获得报酬|领取成功|美食等级提升", RECEIPT, exact=True)
+            receipt = frame.find("报酬获得|收取报酬|收取奖励|收取完成|获得奖励|获得报酬|领取成功|美食等级提升", RECEIPT, exact=True)
             if receipt and not frame.find(LOADING):
                 close = frame.find("关闭|确定|确认|OK", RECEIPT_CLOSE, exact=True)
                 return close is not None
-            button = ready(frame)
+            button = claim_button(frame)
             if not button or frame.blue_button(button):
                 disabled_since = None
                 return False
@@ -168,6 +174,7 @@ class ClaimGourmetRewards(BaseTask):
             screen = self.select(screen, section, TASK_TABS, tasks_page)
             screen, collected = self.claim(
                 screen, section, lambda frame: tasks_page(frame) and selected_tab(frame, section, TASK_TABS),
+                roi=TASK_CLAIM,
             )
             if collected:
                 claimed.append(section)
@@ -176,6 +183,7 @@ class ClaimGourmetRewards(BaseTask):
         screen = self.select(screen, "奖励", MAIN_TABS, carnival)
         _, collected = self.claim(
             screen, "等级奖励", lambda frame: carnival(frame) and selected_tab(frame, "奖励", MAIN_TABS),
+            roi=LEVEL_CLAIM,
         )
         if collected:
             claimed.append("等级奖励")
