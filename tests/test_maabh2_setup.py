@@ -6,6 +6,14 @@ from tempfile import TemporaryDirectory
 from scripts.patch_maabh2 import patch_popup_task
 
 
+KNOWN_POPUPS = [
+    "Hub_清弹窗_关闭公告",
+    "Hub_清弹窗_关闭祈愿宣传",
+    "Hub_清弹窗_领取每日签到",
+]
+HOME_MARKER = "检测主界面_标志"
+
+
 class MaaBh2SetupTests(unittest.TestCase):
     def setUp(self):
         self.interface = Path(self.enterContext(TemporaryDirectory())) / "interface.json"
@@ -16,32 +24,76 @@ class MaaBh2SetupTests(unittest.TestCase):
     def write_interface(self):
         self.interface.write_text(json.dumps(self.project, ensure_ascii=False), encoding="utf-8-sig")
 
-    def test_rechecks_home_after_popup_timeout_and_after_last_click(self):
+    def test_handles_known_popups_before_generic_buttons_or_home_detection(self):
         self.popup["pipeline_override"] = {"清弹窗": {"timeout": 20000}}
         self.write_interface()
 
         self.assertTrue(patch_popup_task(self.interface))
         updated = json.loads(self.interface.read_text(encoding="utf-8"))
         self.assertEqual(updated["task"][1], self.daily)
-        self.assertEqual(updated["task"][0], {
-            **self.popup,
-            "pipeline_override": {
-                "清弹窗": {"timeout": 20000, "on_error": ["检测主界面_标志", "首页"]},
-                "检测主界面_终": {"on_error": ["检测主界面_标志", "拉回主界面"]},
-            },
-        })
+        overrides = updated["task"][0].pop("pipeline_override")
+        unchanged_fields = {key: value for key, value in self.popup.items() if key != "pipeline_override"}
+        self.assertEqual(updated["task"][0], unchanged_fields)
+        self.assertEqual(overrides["清弹窗"]["timeout"], 20000)
+        self.assertEqual(overrides["清弹窗"]["next"], [
+            *KNOWN_POPUPS, "关掉x", "领取", "清弹窗_点领取奖励", "生日弹窗", HOME_MARKER,
+        ])
+        self.assertEqual(overrides["清弹窗"]["on_error"], [HOME_MARKER, "首页"])
+        self.assertEqual(overrides["检测主界面"]["next"], [*KNOWN_POPUPS, HOME_MARKER])
+        self.assertEqual(overrides["检测主界面_终"]["next"], [*KNOWN_POPUPS, HOME_MARKER])
+        self.assertEqual(overrides["检测主界面_终"]["on_error"], [HOME_MARKER, "拉回主界面"])
+        for node_name in KNOWN_POPUPS:
+            with self.subTest(node=node_name):
+                node = overrides[node_name]
+                self.assertEqual(node["action"]["type"], "Click")
+                self.assertEqual(node["next"], ["清弹窗"])
+                self.assertGreater(node["max_hit"], 0)
+
+        notice, wish, sign_in = (overrides[name]["recognition"] for name in KNOWN_POPUPS)
+        for recognition, template in ((notice, "popup_x/关闭.png"), (wish, "popup_x/关闭2.png")):
+            self.assertEqual(recognition["type"], "TemplateMatch")
+            self.assertEqual(recognition["param"]["template"], [template])
+            self.assertIn("roi", recognition["param"])
+        self.assertEqual(sign_in["type"], "And")
+        sign_in_params = sign_in["param"]
+        title, button = sign_in_params["all_of"]
+        self.assertEqual(title["recognition"], "OCR")
+        self.assertEqual(title["expected"], ["^每日签到$"])
+        self.assertEqual(button["recognition"], "TemplateMatch")
+        self.assertEqual(button["template"], ["btn_lingqu.png"])
+        self.assertNotEqual(title["roi"], button["roi"])
+        self.assertEqual(sign_in_params["box_index"], 1)
+
+    def test_upgrades_previously_patched_project_without_discarding_custom_fields(self):
+        self.popup["pipeline_override"] = {
+            "清弹窗": {"timeout": 20000, "on_error": [HOME_MARKER, "首页"]},
+            "检测主界面_终": {"on_error": [HOME_MARKER, "拉回主界面"], "pre_delay": 2500},
+            "领取": {"max_hit": 2},
+        }
+        self.write_interface()
+        self.assertTrue(patch_popup_task(self.interface))
+
+        updated = json.loads(self.interface.read_text(encoding="utf-8"))
+        overrides = updated["task"][0]["pipeline_override"]
+        self.assertEqual(overrides["领取"], {"max_hit": 2})
+        self.assertEqual(overrides["清弹窗"]["timeout"], 20000)
+        self.assertEqual(overrides["清弹窗"]["on_error"], [HOME_MARKER, "首页"])
+        self.assertEqual(overrides["清弹窗"]["next"][:3], KNOWN_POPUPS)
+        self.assertEqual(overrides["检测主界面_终"]["pre_delay"], 2500)
         before = self.interface.read_bytes()
         self.assertFalse(patch_popup_task(self.interface))
         self.assertEqual(self.interface.read_bytes(), before)
 
-    def test_does_not_replace_an_existing_different_fallback(self):
-        self.popup["pipeline_override"] = {"检测主界面_终": {"on_error": ["自定义回退"]}}
-        self.write_interface()
-        before = self.interface.read_bytes()
+    def test_does_not_replace_existing_different_routing(self):
+        for node, field in (("检测主界面_终", "on_error"), ("清弹窗", "next")):
+            with self.subTest(node=node, field=field):
+                self.popup["pipeline_override"] = {node: {field: ["自定义路由"]}}
+                self.write_interface()
+                before = self.interface.read_bytes()
 
-        with self.assertRaisesRegex(ValueError, "已有不同"):
-            patch_popup_task(self.interface)
-        self.assertEqual(self.interface.read_bytes(), before)
+                with self.assertRaisesRegex(ValueError, "已有不同"):
+                    patch_popup_task(self.interface)
+                self.assertEqual(self.interface.read_bytes(), before)
 
     def test_unsupported_version_is_not_modified(self):
         self.project["version"] = "0.3.7"
