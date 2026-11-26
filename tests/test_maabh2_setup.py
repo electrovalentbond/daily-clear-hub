@@ -1,4 +1,5 @@
 import json
+import re
 import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -15,6 +16,8 @@ HOME_MARKER = "检测主界面_标志"
 LOGIN_START = "国服进入游戏_开始"
 LOGIN_UPDATE_WAIT = "国服进入游戏_等更新完成"
 LOGIN_SCREEN = "进入游戏_识别切换账号"
+LOGIN_GAME_UPDATE = "国服进入游戏_检测更新"
+LOGIN_PROMPT = "Hub_进入游戏_点击继续"
 POPUP_HANDOFF = "Hub_进入游戏_交接清弹窗"
 
 
@@ -73,7 +76,7 @@ class MaaBh2SetupTests(unittest.TestCase):
         self.assertNotEqual(title["roi"], button["roi"])
         self.assertEqual(sign_in_params["box_index"], 1)
 
-    def test_login_waits_for_a_known_screen_then_hands_off_without_clicking(self):
+    def test_login_routes_through_guarded_start_or_handoff(self):
         self.login["pipeline_override"] = {LOGIN_START: {"pre_delay": 500}}
         self.write_interface()
         self.assertTrue(patch_project(self.interface))
@@ -85,12 +88,32 @@ class MaaBh2SetupTests(unittest.TestCase):
         self.assertEqual(overrides[LOGIN_START]["pre_delay"], 500)
         self.assertEqual(overrides[LOGIN_START]["timeout"], 60000)
         self.assertEqual(overrides[LOGIN_START]["next"], [
-            POPUP_HANDOFF, "国服进入游戏_检测更新", LOGIN_SCREEN,
+            POPUP_HANDOFF, LOGIN_GAME_UPDATE, LOGIN_PROMPT, LOGIN_SCREEN,
         ])
         self.assertEqual(overrides[LOGIN_UPDATE_WAIT]["timeout"], 300000)
-        self.assertEqual(overrides[LOGIN_UPDATE_WAIT]["next"], [POPUP_HANDOFF, LOGIN_SCREEN])
+        self.assertEqual(overrides[LOGIN_UPDATE_WAIT]["next"], [POPUP_HANDOFF, LOGIN_PROMPT, LOGIN_SCREEN])
         self.assertEqual(overrides[LOGIN_SCREEN]["timeout"], 60000)
-        self.assertEqual(overrides[LOGIN_SCREEN]["next"], [POPUP_HANDOFF])
+        self.assertEqual(overrides[LOGIN_SCREEN]["repeat"], 1)
+        self.assertEqual(overrides[LOGIN_SCREEN]["pre_delay"], 0)
+        self.assertEqual(overrides[LOGIN_SCREEN]["max_hit"], 4)
+        self.assertEqual(overrides[LOGIN_SCREEN]["next"], [POPUP_HANDOFF, LOGIN_PROMPT, LOGIN_SCREEN])
+
+        prompt = overrides[LOGIN_PROMPT]
+        recognition = prompt["recognition"]
+        self.assertEqual(recognition["type"], "OCR")
+        x, y, width, height = recognition["param"]["roi"]
+        self.assertTrue(x <= 640 < x + width and 550 <= y < 668 < y + height <= 720)
+        patterns = recognition["param"]["expected"]
+        for text, expected in (
+            ("抚摸屏幕继续", True), ("点击屏幕进入游戏", True), ("轻触进入游戏", True),
+            ("点击领取奖励", False), ("禁止进入游戏", False), ("账号切换", False),
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(any(re.search(pattern, text) is not None for pattern in patterns), expected)
+        self.assertEqual(prompt["action"], {"type": "Click", "param": {"target": [640, 668]}})
+        self.assertEqual(prompt["post_delay"], 2000)
+        self.assertEqual(prompt["max_hit"], 4)
+        self.assertEqual(prompt["next"], [POPUP_HANDOFF, LOGIN_PROMPT, LOGIN_SCREEN])
 
         handoff = overrides[POPUP_HANDOFF]
         self.assertEqual(handoff["recognition"]["type"], "Or")
@@ -120,6 +143,27 @@ class MaaBh2SetupTests(unittest.TestCase):
         self.assertEqual(overrides["清弹窗"]["next"][:3], KNOWN_POPUPS)
         self.assertEqual(overrides["检测主界面_终"]["pre_delay"], 2500)
         self.assertIn(POPUP_HANDOFF, updated["task"][2]["pipeline_override"])
+        before = self.interface.read_bytes()
+        self.assertFalse(patch_project(self.interface))
+        self.assertEqual(self.interface.read_bytes(), before)
+
+    def test_migrates_existing_login_routes_to_include_title_prompt(self):
+        self.login["pipeline_override"] = {
+            LOGIN_START: {"timeout": 60000, "next": [POPUP_HANDOFF, LOGIN_GAME_UPDATE, LOGIN_SCREEN]},
+            LOGIN_UPDATE_WAIT: {"timeout": 300000, "next": [POPUP_HANDOFF, LOGIN_SCREEN]},
+            LOGIN_SCREEN: {"timeout": 60000, "next": [POPUP_HANDOFF], "rate_limit": 600},
+        }
+        self.write_interface()
+        self.assertTrue(patch_project(self.interface))
+
+        updated = json.loads(self.interface.read_text(encoding="utf-8"))
+        overrides = updated["task"][2]["pipeline_override"]
+        self.assertEqual(overrides[LOGIN_START]["next"], [
+            POPUP_HANDOFF, LOGIN_GAME_UPDATE, LOGIN_PROMPT, LOGIN_SCREEN,
+        ])
+        self.assertEqual(overrides[LOGIN_UPDATE_WAIT]["next"], [POPUP_HANDOFF, LOGIN_PROMPT, LOGIN_SCREEN])
+        self.assertEqual(overrides[LOGIN_SCREEN]["next"], [POPUP_HANDOFF, LOGIN_PROMPT, LOGIN_SCREEN])
+        self.assertEqual(overrides[LOGIN_SCREEN]["rate_limit"], 600)
         before = self.interface.read_bytes()
         self.assertFalse(patch_project(self.interface))
         self.assertEqual(self.interface.read_bytes(), before)

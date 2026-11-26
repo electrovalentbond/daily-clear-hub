@@ -9,6 +9,10 @@ from tempfile import NamedTemporaryFile
 POPUP_ENTRY = "清理弹窗_入口"
 LOGIN_ENTRY = "国服进入游戏_开始"
 LOGIN_HANDOFF = "Hub_进入游戏_交接清弹窗"
+LOGIN_PROMPT = "Hub_进入游戏_点击继续"
+LOGIN_ACCOUNT = "进入游戏_识别切换账号"
+LOGIN_UPDATE = "国服进入游戏_检测更新"
+LOGIN_UPDATE_WAIT = "国服进入游戏_等更新完成"
 HOME_MARKER = "检测主界面_标志"
 NOTICE = "Hub_清弹窗_关闭公告"
 WISH = "Hub_清弹窗_关闭祈愿宣传"
@@ -67,6 +71,13 @@ POPUP_OVERRIDES = {
 }
 
 
+LOGIN_READY = [LOGIN_HANDOFF, LOGIN_PROMPT, LOGIN_ACCOUNT]
+PREVIOUS_LOGIN_NEXT = {
+    LOGIN_ENTRY: [LOGIN_HANDOFF, LOGIN_UPDATE, LOGIN_ACCOUNT],
+    LOGIN_UPDATE_WAIT: [LOGIN_HANDOFF, LOGIN_ACCOUNT],
+    LOGIN_ACCOUNT: [LOGIN_HANDOFF],
+}
+
 LOGIN_OVERRIDES = {
     LOGIN_HANDOFF: {
         "recognition": {
@@ -83,23 +94,48 @@ LOGIN_OVERRIDES = {
     },
     LOGIN_ENTRY: {
         "timeout": 60000,
-        "next": [LOGIN_HANDOFF, "国服进入游戏_检测更新", "进入游戏_识别切换账号"],
+        "next": [LOGIN_HANDOFF, LOGIN_UPDATE, LOGIN_PROMPT, LOGIN_ACCOUNT],
         "focus": {"Node.PipelineNode.Failed": "60 秒内未识别到登录入口或游戏内界面，请检查模拟器画面"},
     },
-    "国服进入游戏_等更新完成": {
+    LOGIN_UPDATE_WAIT: {
         "timeout": 300000,
-        "next": [LOGIN_HANDOFF, "进入游戏_识别切换账号"],
+        "next": LOGIN_READY,
         "focus": {"Node.PipelineNode.Failed": "等待更新结束超过 5 分钟，请检查游戏内下载进度"},
     },
-    "进入游戏_识别切换账号": {
+    LOGIN_PROMPT: {
+        "recognition": {
+            "type": "OCR",
+            "param": {
+                "roi": [350, 550, 580, 170],
+                "expected": [
+                    r"屏\s*幕\s*继\s*续",
+                    r"^(?:抚摸|点击|轻触)\s*(?:屏幕\s*)?进入游戏[！!。]?$",
+                ],
+            },
+        },
+        "action": {"type": "Click", "param": {"target": [640, 668]}},
+        "max_hit": 4,
+        "post_delay": 2000,
         "timeout": 60000,
-        "next": [LOGIN_HANDOFF],
+        "next": LOGIN_READY,
+        "focus": {
+            "Node.PipelineNode.Succeeded": "已识别标题页继续提示，点击进入游戏",
+            "Node.PipelineNode.Failed": "点击继续后未识别到游戏内界面，请检查登录或加载状态",
+        },
+    },
+    LOGIN_ACCOUNT: {
+        # Recheck the title screen between taps so the next tap cannot land on an in-game popup.
+        "repeat": 1,
+        "pre_delay": 0,
+        "max_hit": 4,
+        "timeout": 60000,
+        "next": LOGIN_READY,
         "focus": {"Node.PipelineNode.Failed": "点击登录后 60 秒内未识别到游戏内界面，请检查是否有登录或授权提示"},
     },
 }
 
 
-def merge_overrides(task: dict, fields_by_node: dict) -> bool:
+def merge_overrides(task: dict, fields_by_node: dict, previous_next: dict) -> bool:
     if task.get("pipeline_override") is None:
         task["pipeline_override"] = {}
     overrides = task["pipeline_override"]
@@ -112,11 +148,12 @@ def merge_overrides(task: dict, fields_by_node: dict) -> bool:
             raise ValueError(f"{name} 的流水线覆盖配置应为对象")
         for field, value in fields.items():
             if field in node:
-                if node[field] != value:
+                if node[field] == value:
+                    continue
+                if field != "next" or name not in previous_next or node[field] != previous_next[name]:
                     raise ValueError(f"{name} 已有不同的 {field} 配置，请核对后再应用修复")
-            else:
-                node[field] = value
-                changed = True
+            node[field] = value
+            changed = True
     return changed
 
 
@@ -131,11 +168,14 @@ def patch_project(interface: Path) -> bool:
     if not isinstance(tasks, list):
         raise ValueError("MaaBH2 项目缺少任务列表")
     changed = False
-    for entry, overrides in ((POPUP_ENTRY, POPUP_OVERRIDES), (LOGIN_ENTRY, LOGIN_OVERRIDES)):
+    for entry, overrides, previous_next in (
+        (POPUP_ENTRY, POPUP_OVERRIDES, {}),
+        (LOGIN_ENTRY, LOGIN_OVERRIDES, PREVIOUS_LOGIN_NEXT),
+    ):
         matches = [task for task in tasks if isinstance(task, dict) and task.get("entry") == entry]
         if len(matches) != 1:
             raise ValueError(f"MaaBH2 项目中应有且只有一个 {entry} 任务")
-        if merge_overrides(matches[0], overrides):
+        if merge_overrides(matches[0], overrides, previous_next):
             changed = True
     if not changed:
         return False
