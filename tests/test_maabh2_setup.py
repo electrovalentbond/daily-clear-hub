@@ -3,7 +3,7 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from scripts.patch_maabh2 import patch_popup_task
+from scripts.patch_maabh2 import patch_project
 
 
 KNOWN_POPUPS = [
@@ -12,6 +12,10 @@ KNOWN_POPUPS = [
     "Hub_清弹窗_领取每日签到",
 ]
 HOME_MARKER = "检测主界面_标志"
+LOGIN_START = "国服进入游戏_开始"
+LOGIN_UPDATE_WAIT = "国服进入游戏_等更新完成"
+LOGIN_SCREEN = "进入游戏_识别切换账号"
+POPUP_HANDOFF = "Hub_进入游戏_交接清弹窗"
 
 
 class MaaBh2SetupTests(unittest.TestCase):
@@ -19,7 +23,12 @@ class MaaBh2SetupTests(unittest.TestCase):
         self.interface = Path(self.enterContext(TemporaryDirectory())) / "interface.json"
         self.popup = {"name": "3. 清理弹窗", "entry": "清理弹窗_入口", "default_check": True}
         self.daily = {"name": "10. 每日每周任务奖励领取", "entry": "每日_开始"}
-        self.project = {"name": "MaaBh2", "version": "0.3.6", "task": [self.popup, self.daily]}
+        self.login = {"name": "11. 进入游戏（国服/腾讯服/测试服）", "entry": LOGIN_START}
+        self.server_select = {"name": "2. 进入游戏（自选服务器）", "entry": "进入游戏_开始"}
+        self.project = {
+            "name": "MaaBh2", "version": "0.3.6",
+            "task": [self.popup, self.daily, self.login, self.server_select],
+        }
 
     def write_interface(self):
         self.interface.write_text(json.dumps(self.project, ensure_ascii=False), encoding="utf-8-sig")
@@ -28,7 +37,7 @@ class MaaBh2SetupTests(unittest.TestCase):
         self.popup["pipeline_override"] = {"清弹窗": {"timeout": 20000}}
         self.write_interface()
 
-        self.assertTrue(patch_popup_task(self.interface))
+        self.assertTrue(patch_project(self.interface))
         updated = json.loads(self.interface.read_text(encoding="utf-8"))
         self.assertEqual(updated["task"][1], self.daily)
         overrides = updated["task"][0].pop("pipeline_override")
@@ -64,6 +73,36 @@ class MaaBh2SetupTests(unittest.TestCase):
         self.assertNotEqual(title["roi"], button["roi"])
         self.assertEqual(sign_in_params["box_index"], 1)
 
+    def test_login_waits_for_a_known_screen_then_hands_off_without_clicking(self):
+        self.login["pipeline_override"] = {LOGIN_START: {"pre_delay": 500}}
+        self.write_interface()
+        self.assertTrue(patch_project(self.interface))
+
+        popup_task, daily, login_task, server_select = json.loads(self.interface.read_text(encoding="utf-8"))["task"]
+        self.assertEqual(daily, self.daily)
+        self.assertEqual(server_select, self.server_select)
+        overrides = login_task["pipeline_override"]
+        self.assertEqual(overrides[LOGIN_START]["pre_delay"], 500)
+        self.assertEqual(overrides[LOGIN_START]["timeout"], 60000)
+        self.assertEqual(overrides[LOGIN_START]["next"], [
+            POPUP_HANDOFF, "国服进入游戏_检测更新", LOGIN_SCREEN,
+        ])
+        self.assertEqual(overrides[LOGIN_UPDATE_WAIT]["timeout"], 300000)
+        self.assertEqual(overrides[LOGIN_UPDATE_WAIT]["next"], [POPUP_HANDOFF, LOGIN_SCREEN])
+        self.assertEqual(overrides[LOGIN_SCREEN]["timeout"], 60000)
+        self.assertEqual(overrides[LOGIN_SCREEN]["next"], [POPUP_HANDOFF])
+
+        handoff = overrides[POPUP_HANDOFF]
+        self.assertEqual(handoff["recognition"]["type"], "Or")
+        self.assertEqual(handoff["action"], {"type": "DoNothing"})
+        self.assertFalse(handoff.get("next"))
+        known_screens = handoff["recognition"]["param"]["any_of"]
+        self.assertEqual(known_screens[0], HOME_MARKER)
+        self.assertEqual(known_screens[1:], [
+            {"recognition": popup_task["pipeline_override"][node_name]["recognition"]}
+            for node_name in KNOWN_POPUPS
+        ])
+
     def test_upgrades_previously_patched_project_without_discarding_custom_fields(self):
         self.popup["pipeline_override"] = {
             "清弹窗": {"timeout": 20000, "on_error": [HOME_MARKER, "首页"]},
@@ -71,7 +110,7 @@ class MaaBh2SetupTests(unittest.TestCase):
             "领取": {"max_hit": 2},
         }
         self.write_interface()
-        self.assertTrue(patch_popup_task(self.interface))
+        self.assertTrue(patch_project(self.interface))
 
         updated = json.loads(self.interface.read_text(encoding="utf-8"))
         overrides = updated["task"][0]["pipeline_override"]
@@ -80,8 +119,9 @@ class MaaBh2SetupTests(unittest.TestCase):
         self.assertEqual(overrides["清弹窗"]["on_error"], [HOME_MARKER, "首页"])
         self.assertEqual(overrides["清弹窗"]["next"][:3], KNOWN_POPUPS)
         self.assertEqual(overrides["检测主界面_终"]["pre_delay"], 2500)
+        self.assertIn(POPUP_HANDOFF, updated["task"][2]["pipeline_override"])
         before = self.interface.read_bytes()
-        self.assertFalse(patch_popup_task(self.interface))
+        self.assertFalse(patch_project(self.interface))
         self.assertEqual(self.interface.read_bytes(), before)
 
     def test_does_not_replace_existing_different_routing(self):
@@ -92,14 +132,23 @@ class MaaBh2SetupTests(unittest.TestCase):
                 before = self.interface.read_bytes()
 
                 with self.assertRaisesRegex(ValueError, "已有不同"):
-                    patch_popup_task(self.interface)
+                    patch_project(self.interface)
                 self.assertEqual(self.interface.read_bytes(), before)
+
+    def test_conflicting_login_routes_leave_the_whole_project_unchanged(self):
+        self.login["pipeline_override"] = {LOGIN_START: {"next": ["自定义登录"]}}
+        self.write_interface()
+        before = self.interface.read_bytes()
+
+        with self.assertRaisesRegex(ValueError, "已有不同"):
+            patch_project(self.interface)
+        self.assertEqual(self.interface.read_bytes(), before)
 
     def test_unsupported_version_is_not_modified(self):
         self.project["version"] = "0.3.7"
         self.write_interface()
         before = self.interface.read_bytes()
 
-        with self.assertRaisesRegex(ValueError, "MaaBH2 0.3.6"):
-            patch_popup_task(self.interface)
+        with self.assertRaisesRegex(ValueError, r"MaaBH2.*0\.3\.6"):
+            patch_project(self.interface)
         self.assertEqual(self.interface.read_bytes(), before)

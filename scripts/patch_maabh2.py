@@ -7,6 +7,8 @@ from tempfile import NamedTemporaryFile
 
 
 POPUP_ENTRY = "清理弹窗_入口"
+LOGIN_ENTRY = "国服进入游戏_开始"
+LOGIN_HANDOFF = "Hub_进入游戏_交接清弹窗"
 HOME_MARKER = "检测主界面_标志"
 NOTICE = "Hub_清弹窗_关闭公告"
 WISH = "Hub_清弹窗_关闭祈愿宣传"
@@ -65,38 +67,76 @@ POPUP_OVERRIDES = {
 }
 
 
-def patch_popup_task(interface: Path) -> bool:
-    project = json.loads(interface.read_text(encoding="utf-8-sig"))
-    if not isinstance(project, dict) or (
-        project.get("name"), project.get("version")
-    ) != ("MaaBh2", "0.3.6"):
-        raise ValueError("清理弹窗修复需要 MaaBH2 0.3.6 的 interface.json")
+LOGIN_OVERRIDES = {
+    LOGIN_HANDOFF: {
+        "recognition": {
+            "type": "Or",
+            "param": {
+                "any_of": [
+                    HOME_MARKER,
+                    *({"recognition": POPUP_OVERRIDES[node]["recognition"]} for node in KNOWN_POPUPS),
+                ],
+            },
+        },
+        "action": {"type": "DoNothing"},
+        "focus": {"Node.PipelineNode.Succeeded": "已进入游戏，后续由「3. 清理弹窗」处理"},
+    },
+    LOGIN_ENTRY: {
+        "timeout": 60000,
+        "next": [LOGIN_HANDOFF, "国服进入游戏_检测更新", "进入游戏_识别切换账号"],
+        "focus": {"Node.PipelineNode.Failed": "60 秒内未识别到登录入口或游戏内界面，请检查模拟器画面"},
+    },
+    "国服进入游戏_等更新完成": {
+        "timeout": 300000,
+        "next": [LOGIN_HANDOFF, "进入游戏_识别切换账号"],
+        "focus": {"Node.PipelineNode.Failed": "等待更新结束超过 5 分钟，请检查游戏内下载进度"},
+    },
+    "进入游戏_识别切换账号": {
+        "timeout": 60000,
+        "next": [LOGIN_HANDOFF],
+        "focus": {"Node.PipelineNode.Failed": "点击登录后 60 秒内未识别到游戏内界面，请检查是否有登录或授权提示"},
+    },
+}
 
-    tasks = project.get("task")
-    if not isinstance(tasks, list):
-        raise ValueError("MaaBH2 项目缺少任务列表")
-    matches = [task for task in tasks if isinstance(task, dict) and task.get("entry") == POPUP_ENTRY]
-    if len(matches) != 1:
-        raise ValueError("MaaBH2 项目中应有且只有一个清理弹窗任务")
 
-    task = matches[0]
+def merge_overrides(task: dict, fields_by_node: dict) -> bool:
     if task.get("pipeline_override") is None:
         task["pipeline_override"] = {}
     overrides = task["pipeline_override"]
     if not isinstance(overrides, dict):
-        raise ValueError("清理弹窗任务的 pipeline_override 应为对象")
+        raise ValueError(f"{task['entry']} 的 pipeline_override 应为对象")
     changed = False
-    for name, fields in POPUP_OVERRIDES.items():
+    for name, fields in fields_by_node.items():
         node = overrides.setdefault(name, {})
         if not isinstance(node, dict):
-            raise ValueError(f"{name} 的清理弹窗覆盖配置应为对象")
+            raise ValueError(f"{name} 的流水线覆盖配置应为对象")
         for field, value in fields.items():
             if field in node:
                 if node[field] != value:
-                    raise ValueError(f"{name} 已有不同的清理弹窗 {field} 配置，请核对后再应用修复")
+                    raise ValueError(f"{name} 已有不同的 {field} 配置，请核对后再应用修复")
             else:
                 node[field] = value
                 changed = True
+    return changed
+
+
+def patch_project(interface: Path) -> bool:
+    project = json.loads(interface.read_text(encoding="utf-8-sig"))
+    if not isinstance(project, dict) or (
+        project.get("name"), project.get("version")
+    ) != ("MaaBh2", "0.3.6"):
+        raise ValueError("MaaBH2 修复需要 0.3.6 的 interface.json")
+
+    tasks = project.get("task")
+    if not isinstance(tasks, list):
+        raise ValueError("MaaBH2 项目缺少任务列表")
+    changed = False
+    for entry, overrides in ((POPUP_ENTRY, POPUP_OVERRIDES), (LOGIN_ENTRY, LOGIN_OVERRIDES)):
+        matches = [task for task in tasks if isinstance(task, dict) and task.get("entry") == entry]
+        if len(matches) != 1:
+            raise ValueError(f"MaaBH2 项目中应有且只有一个 {entry} 任务")
+        if merge_overrides(matches[0], overrides):
+            changed = True
     if not changed:
         return False
 
@@ -113,14 +153,14 @@ def patch_popup_task(interface: Path) -> bool:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="为 MaaBH2 清理弹窗任务添加公告、祈愿宣传和每日签到识别")
+    parser = argparse.ArgumentParser(description="修复 MaaBH2 登录交接及公告、祈愿宣传和每日签到处理")
     parser.add_argument("interface", type=Path, help="MaaBH2 来源目录的 interface.json")
     args = parser.parse_args()
     try:
-        applied = patch_popup_task(args.interface)
+        applied = patch_project(args.interface)
     except (OSError, ValueError) as exc:
         parser.exit(1, f"{exc}\n")
-    print("已应用 MaaBH2 清理弹窗修复" if applied else "MaaBH2 清理弹窗修复已存在")
+    print("已应用 MaaBH2 登录与弹窗修复" if applied else "MaaBH2 登录与弹窗修复已存在")
 
 
 if __name__ == "__main__":
