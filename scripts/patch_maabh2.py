@@ -17,7 +17,35 @@ HOME_MARKER = "检测主界面_标志"
 NOTICE = "Hub_清弹窗_关闭公告"
 WISH = "Hub_清弹窗_关闭祈愿宣传"
 SIGN_IN = "Hub_清弹窗_领取每日签到"
+WISH_RETURN = "Hub_清弹窗_退出祈愿"
+WISH_BACK = "Hub_清弹窗_祈愿系统返回"
 KNOWN_POPUPS = [NOTICE, WISH, SIGN_IN]
+WISH_NAVIGATION = [WISH_RETURN, WISH_BACK]
+HOME_NAVIGATION = [HOME_MARKER, "首页"]
+HOME_SCAN = [*KNOWN_POPUPS, *WISH_NAVIGATION, *HOME_NAVIGATION]
+STANDARD_POPUPS = ["关掉x", "领取", "清弹窗_点领取奖励", "生日弹窗"]
+
+WISH_PAGE = {
+    "recognition": "Or",
+    "any_of": [
+        {
+            "recognition": "And",
+            "all_of": [
+                {"recognition": "OCR", "roi": [100, 0, 590, 102], "expected": [r"^祈\s*愿\s*记\s*录$"]},
+                {
+                    "recognition": "OCR",
+                    "roi": [690, 520, 610, 150],
+                    "expected": [r"^祈\s*愿\s*(?:1\s*0|1|一|十)\s*次$"],
+                },
+            ],
+        },
+        {
+            "recognition": "OCR",
+            "roi": [100, 0, 1100, 180],
+            "expected": [r"^全\s*神\s*器\s*超\s*绝\s*祈\s*愿$"],
+        },
+    ],
+}
 
 
 def popup_click(recognition: str, params: dict, target_offset: list[int], message: str) -> dict:
@@ -41,8 +69,8 @@ POPUP_OVERRIDES = {
     WISH: popup_click(
         "TemplateMatch",
         {"template": ["popup_x/关闭2.png"], "roi": [990, 153, 95, 84], "threshold": 0.86},
-        [18, 16, -36, -32],
-        "已关闭崩坏学园 2 祈愿宣传",
+        [22, 18, -49, -45],
+        "已点击崩坏学园 2 祈愿宣传关闭按钮",
     ),
     SIGN_IN: popup_click(
         "And",
@@ -61,21 +89,85 @@ POPUP_OVERRIDES = {
         [76, 20, -152, -40],
         "已点击每日签到领取",
     ),
-    "清弹窗": {
-        "next": [*KNOWN_POPUPS, "关掉x", "领取", "清弹窗_点领取奖励", "生日弹窗", HOME_MARKER],
-        "on_error": [HOME_MARKER, "首页"],
+    WISH_RETURN: popup_click(
+        "And",
+        {
+            "all_of": [
+                WISH_PAGE,
+                {"recognition": "OCR", "roi": [0, 0, 475, 106], "expected": [r"^返\s*回$"]},
+            ],
+            "box_index": 1,
+        },
+        [0, 0, 0, 0],
+        "已识别祈愿界面并点击返回",
+    ),
+    WISH_BACK: {
+        "recognition": {
+            "type": WISH_PAGE["recognition"],
+            "param": {"any_of": WISH_PAGE["any_of"]},
+        },
+        "action": {"type": "ClickKey", "param": {"key": 4}},
+        "max_hit": 2,
+        "post_delay": 1500,
+        "next": ["清弹窗"],
+        "focus": {"Node.PipelineNode.Succeeded": "已识别祈愿界面，尝试模拟器返回键"},
     },
-    # A popup may appear while the game is returning from a different page.
+    "领取": {
+        # The same blue button frame is also used for links to the wish page.
+        "recognition": {
+            "type": "And",
+            "param": {
+                "all_of": [
+                    {
+                        "sub_name": "btn",
+                        "recognition": "TemplateMatch",
+                        "template": ["btn_lingqu.png"],
+                        "threshold": 0.8,
+                        "order_by": "Score",
+                    },
+                    {"recognition": "OCR", "roi": "btn", "expected": [r"^领\s*取$"]},
+                ],
+                "box_index": 0,
+            },
+        },
+    },
+    "清弹窗": {
+        "next": [*KNOWN_POPUPS, *WISH_NAVIGATION, *STANDARD_POPUPS, *HOME_NAVIGATION],
+        "on_error": HOME_NAVIGATION,
+    },
+    "首页": {
+        "recognition": {
+            "type": "TemplateMatch",
+            "param": {
+                "template": ["shouye"],
+                "roi": [540, 0, 490, 145],
+                "threshold": 0.7,
+                "order_by": "Score",
+                "green_mask": True,
+            },
+        },
+        "next": ["清弹窗"],
+    },
+    # Keep each retry on a newly recognized screen, including after a late popup.
+    "检测主界面": {"next": HOME_SCAN, "on_error": HOME_NAVIGATION},
+    "检测主界面_终": {"next": HOME_SCAN, "on_error": HOME_NAVIGATION},
+}
+
+PREVIOUS_POPUP_OVERRIDES = {
+    WISH: {
+        "action": {"type": "Click", "param": {"target_offset": [18, 16, -36, -32]}},
+        "focus": {"Node.PipelineNode.Succeeded": "已关闭崩坏学园 2 祈愿宣传"},
+    },
+    "清弹窗": {"next": [*KNOWN_POPUPS, *STANDARD_POPUPS, HOME_MARKER]},
     "检测主界面": {"next": [*KNOWN_POPUPS, HOME_MARKER]},
     "检测主界面_终": {"next": [*KNOWN_POPUPS, HOME_MARKER], "on_error": [HOME_MARKER, "拉回主界面"]},
 }
 
-
 LOGIN_READY = [LOGIN_HANDOFF, LOGIN_PROMPT, LOGIN_ACCOUNT]
-PREVIOUS_LOGIN_NEXT = {
-    LOGIN_ENTRY: [LOGIN_HANDOFF, LOGIN_UPDATE, LOGIN_ACCOUNT],
-    LOGIN_UPDATE_WAIT: [LOGIN_HANDOFF, LOGIN_ACCOUNT],
-    LOGIN_ACCOUNT: [LOGIN_HANDOFF],
+PREVIOUS_LOGIN_OVERRIDES = {
+    LOGIN_ENTRY: {"next": [LOGIN_HANDOFF, LOGIN_UPDATE, LOGIN_ACCOUNT]},
+    LOGIN_UPDATE_WAIT: {"next": [LOGIN_HANDOFF, LOGIN_ACCOUNT]},
+    LOGIN_ACCOUNT: {"next": [LOGIN_HANDOFF]},
 }
 
 LOGIN_OVERRIDES = {
@@ -135,7 +227,7 @@ LOGIN_OVERRIDES = {
 }
 
 
-def merge_overrides(task: dict, fields_by_node: dict, previous_next: dict) -> bool:
+def merge_overrides(task: dict, fields_by_node: dict, previous_fields_by_node: dict) -> bool:
     if task.get("pipeline_override") is None:
         task["pipeline_override"] = {}
     overrides = task["pipeline_override"]
@@ -146,11 +238,12 @@ def merge_overrides(task: dict, fields_by_node: dict, previous_next: dict) -> bo
         node = overrides.setdefault(name, {})
         if not isinstance(node, dict):
             raise ValueError(f"{name} 的流水线覆盖配置应为对象")
+        previous_fields = previous_fields_by_node.get(name, {})
         for field, value in fields.items():
             if field in node:
                 if node[field] == value:
                     continue
-                if field != "next" or name not in previous_next or node[field] != previous_next[name]:
+                if field not in previous_fields or node[field] != previous_fields[field]:
                     raise ValueError(f"{name} 已有不同的 {field} 配置，请核对后再应用修复")
             node[field] = value
             changed = True
@@ -168,14 +261,14 @@ def patch_project(interface: Path) -> bool:
     if not isinstance(tasks, list):
         raise ValueError("MaaBH2 项目缺少任务列表")
     changed = False
-    for entry, overrides, previous_next in (
-        (POPUP_ENTRY, POPUP_OVERRIDES, {}),
-        (LOGIN_ENTRY, LOGIN_OVERRIDES, PREVIOUS_LOGIN_NEXT),
+    for entry, overrides, previous_fields in (
+        (POPUP_ENTRY, POPUP_OVERRIDES, PREVIOUS_POPUP_OVERRIDES),
+        (LOGIN_ENTRY, LOGIN_OVERRIDES, PREVIOUS_LOGIN_OVERRIDES),
     ):
         matches = [task for task in tasks if isinstance(task, dict) and task.get("entry") == entry]
         if len(matches) != 1:
             raise ValueError(f"MaaBH2 项目中应有且只有一个 {entry} 任务")
-        if merge_overrides(matches[0], overrides, previous_next):
+        if merge_overrides(matches[0], overrides, previous_fields):
             changed = True
     if not changed:
         return False
@@ -193,7 +286,7 @@ def patch_project(interface: Path) -> bool:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="修复 MaaBH2 登录交接及公告、祈愿宣传和每日签到处理")
+    parser = argparse.ArgumentParser(description="修复 MaaBH2 登录交接、弹窗清理和祈愿页返回")
     parser.add_argument("interface", type=Path, help="MaaBH2 来源目录的 interface.json")
     args = parser.parse_args()
     try:

@@ -13,6 +13,8 @@ KNOWN_POPUPS = [
     "Hub_清弹窗_领取每日签到",
 ]
 HOME_MARKER = "检测主界面_标志"
+WISH_RETURN = "Hub_清弹窗_退出祈愿"
+WISH_BACK = "Hub_清弹窗_祈愿系统返回"
 LOGIN_START = "国服进入游戏_开始"
 LOGIN_UPDATE_WAIT = "国服进入游戏_等更新完成"
 LOGIN_SCREEN = "进入游戏_识别切换账号"
@@ -48,12 +50,15 @@ class MaaBh2SetupTests(unittest.TestCase):
         self.assertEqual(updated["task"][0], unchanged_fields)
         self.assertEqual(overrides["清弹窗"]["timeout"], 20000)
         self.assertEqual(overrides["清弹窗"]["next"], [
-            *KNOWN_POPUPS, "关掉x", "领取", "清弹窗_点领取奖励", "生日弹窗", HOME_MARKER,
+            *KNOWN_POPUPS, WISH_RETURN, WISH_BACK,
+            "关掉x", "领取", "清弹窗_点领取奖励", "生日弹窗", HOME_MARKER, "首页",
         ])
         self.assertEqual(overrides["清弹窗"]["on_error"], [HOME_MARKER, "首页"])
-        self.assertEqual(overrides["检测主界面"]["next"], [*KNOWN_POPUPS, HOME_MARKER])
-        self.assertEqual(overrides["检测主界面_终"]["next"], [*KNOWN_POPUPS, HOME_MARKER])
-        self.assertEqual(overrides["检测主界面_终"]["on_error"], [HOME_MARKER, "拉回主界面"])
+        for name in ("检测主界面", "检测主界面_终"):
+            self.assertEqual(overrides[name]["next"], [*KNOWN_POPUPS, WISH_RETURN, WISH_BACK, HOME_MARKER, "首页"])
+            self.assertEqual(overrides[name]["on_error"], [HOME_MARKER, "首页"])
+        self.assertEqual(overrides["首页"]["next"], ["清弹窗"])
+        self.assertEqual(overrides["首页"]["recognition"]["param"]["template"], ["shouye"])
         for node_name in KNOWN_POPUPS:
             with self.subTest(node=node_name):
                 node = overrides[node_name]
@@ -75,6 +80,46 @@ class MaaBh2SetupTests(unittest.TestCase):
         self.assertEqual(button["template"], ["btn_lingqu.png"])
         self.assertNotEqual(title["roi"], button["roi"])
         self.assertEqual(sign_in_params["box_index"], 1)
+
+    def test_wish_recovery_targets_the_return_button_and_rescans_for_home(self):
+        self.write_interface()
+        self.assertTrue(patch_project(self.interface))
+        overrides = json.loads(self.interface.read_text(encoding="utf-8"))["task"][0]["pipeline_override"]
+        promo = overrides[KNOWN_POPUPS[1]]
+        self.assertEqual(promo["action"]["param"]["target_offset"], [22, 18, -49, -45])
+
+        exit_node = overrides[WISH_RETURN]
+        self.assertEqual(exit_node["recognition"]["type"], "And")
+        params = exit_node["recognition"]["param"]
+        wish_page, return_button = params["all_of"]
+        self.assertEqual(params["box_index"], 1)
+        self.assertEqual(return_button["recognition"], "OCR")
+        self.assertRegex("返 回", return_button["expected"][0])
+        self.assertNotRegex("返回首页", return_button["expected"][0])
+        self.assertEqual(return_button["roi"][0:2], [0, 0])
+        self.assertEqual(exit_node["action"], {"type": "Click", "param": {"target_offset": [0, 0, 0, 0]}})
+        self.assertEqual(exit_node["next"], ["清弹窗"])
+        self.assertEqual(exit_node["max_hit"], 3)
+
+        back = overrides[WISH_BACK]
+        self.assertEqual(back["recognition"], {"type": "Or", "param": {"any_of": wish_page["any_of"]}})
+        self.assertEqual(back["action"], {"type": "ClickKey", "param": {"key": 4}})
+        self.assertEqual(back["next"], ["清弹窗"])
+        self.assertEqual(back["max_hit"], 2)
+        wish_sections, special_title = wish_page["any_of"]
+        self.assertEqual(wish_sections["recognition"], "And")
+        record, draw = wish_sections["all_of"]
+        self.assertRegex("祈愿记录", record["expected"][0])
+        self.assertNotRegex("祈愿公告", record["expected"][0])
+        self.assertRegex("祈愿10次", draw["expected"][0])
+        self.assertRegex("全神器超绝祈愿", special_title["expected"][0])
+        self.assertNotRegex("祈愿公告", special_title["expected"][0])
+
+        claim_text = overrides["领取"]["recognition"]["param"]["all_of"][1]
+        self.assertEqual(claim_text["roi"], "btn")
+        self.assertRegex("领 取", claim_text["expected"][0])
+        self.assertNotRegex("点击领取奖励", claim_text["expected"][0])
+        self.assertNotRegex("前往祈愿", claim_text["expected"][0])
 
     def test_login_routes_through_guarded_start_or_handoff(self):
         self.login["pipeline_override"] = {LOGIN_START: {"pre_delay": 500}}
@@ -128,8 +173,21 @@ class MaaBh2SetupTests(unittest.TestCase):
 
     def test_upgrades_previously_patched_project_without_discarding_custom_fields(self):
         self.popup["pipeline_override"] = {
-            "清弹窗": {"timeout": 20000, "on_error": [HOME_MARKER, "首页"]},
-            "检测主界面_终": {"on_error": [HOME_MARKER, "拉回主界面"], "pre_delay": 2500},
+            KNOWN_POPUPS[1]: {
+                "action": {"type": "Click", "param": {"target_offset": [18, 16, -36, -32]}},
+                "focus": {"Node.PipelineNode.Succeeded": "已关闭崩坏学园 2 祈愿宣传"},
+            },
+            "清弹窗": {
+                "timeout": 20000,
+                "next": [*KNOWN_POPUPS, "关掉x", "领取", "清弹窗_点领取奖励", "生日弹窗", HOME_MARKER],
+                "on_error": [HOME_MARKER, "首页"],
+            },
+            "检测主界面": {"next": [*KNOWN_POPUPS, HOME_MARKER]},
+            "检测主界面_终": {
+                "next": [*KNOWN_POPUPS, HOME_MARKER],
+                "on_error": [HOME_MARKER, "拉回主界面"],
+                "pre_delay": 2500,
+            },
             "领取": {"max_hit": 2},
         }
         self.write_interface()
@@ -137,11 +195,13 @@ class MaaBh2SetupTests(unittest.TestCase):
 
         updated = json.loads(self.interface.read_text(encoding="utf-8"))
         overrides = updated["task"][0]["pipeline_override"]
-        self.assertEqual(overrides["领取"], {"max_hit": 2})
+        self.assertEqual(overrides["领取"]["max_hit"], 2)
         self.assertEqual(overrides["清弹窗"]["timeout"], 20000)
         self.assertEqual(overrides["清弹窗"]["on_error"], [HOME_MARKER, "首页"])
-        self.assertEqual(overrides["清弹窗"]["next"][:3], KNOWN_POPUPS)
+        self.assertEqual(overrides["清弹窗"]["next"][:5], [*KNOWN_POPUPS, WISH_RETURN, WISH_BACK])
+        self.assertEqual(overrides[KNOWN_POPUPS[1]]["action"]["param"]["target_offset"], [22, 18, -49, -45])
         self.assertEqual(overrides["检测主界面_终"]["pre_delay"], 2500)
+        self.assertEqual(overrides["检测主界面_终"]["on_error"], [HOME_MARKER, "首页"])
         self.assertIn(POPUP_HANDOFF, updated["task"][2]["pipeline_override"])
         before = self.interface.read_bytes()
         self.assertFalse(patch_project(self.interface))
