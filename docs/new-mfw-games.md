@@ -29,6 +29,8 @@ NIKKE 国际服使用开源 [NIKKEAutoScript（NKAS）](https://github.com/megum
 
 3. 在 AUTO-MAS「调度队列 → 添加任务」加入 **NIKKE 国际服（NKAS）**。之后从同一个「通用配置」入口修改 NKAS 的任务开关。单轮结果在 AUTO-MAS 历史记录查看，识别、登录和设备细节在 NKAS 项目的 `log` 目录。若首次安装等待 AUTO-MAS 初始化超时，等应用打开后重跑同一条安装命令。[AUTO-MAS 通用托管](https://doc.auto-mas.top/docs/script-guide/general.html)
 
+若 UU 已加速但 NKAS 报 `Launcher path must be specified`，进入该账号的「通用配置 → nkas → PC 客户端」，在「启动器路径」选中实际安装的 `nikke_launcher.exe`，然后保存。已选择「国际」时仍需指定启动器路径。AUTO-MAS 的失败摘要会显示启动检查的结果。适配器的 `nikke-automas\logs` 下，`run-*.log` 是运行记录，同一时间的 `child-*.log` 是 NKAS 子进程输出。用 Windows PowerShell 读取日志时带上 `-Encoding UTF8`。[NKAS 路径配置](https://github.com/megumiss/NIKKEAutoScript/wiki/Quick-Installation-Guide.zh-CN#4-选择游戏路径)
+
 ## 学园偶像大师
 
 1. 导入 `gakumas:` 后面的 MaaGakumasu 目录。[Windows 发布包](https://github.com/SuperWaterGod/MaaGakumasu/releases/tag/v1.5.4)

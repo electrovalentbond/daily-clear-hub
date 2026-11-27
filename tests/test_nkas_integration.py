@@ -25,18 +25,20 @@ class TestNkasIntegration(unittest.TestCase):
             (root / "toolkit/python.exe").touch()
             (root / "main.py").touch()
             for code, reports, expected in (
-                (0, ["complete"], True),
-                (0, ["already_complete"], True),
-                (0, [], False),
-                (0, ["stopped"], False),
-                (0, ["complete", "failed"], False),
-                (1, ["complete"], False),
+                (0, ["complete"], None),
+                (0, ["already_complete"], None),
+                (0, [], "退出码 0"),
+                (130, ["stopped"], "退出码 130"),
+                (0, ["complete", "failed"], "退出码 0"),
+                (1, ["complete"], "退出码 1"),
+                (1, ["failed NKAS 启动器路径为空"], "NKAS 启动器路径为空"),
             ):
                 with self.subTest(code=code, reports=reports), patch.object(runner.subprocess, "Popen") as popen:
                     process = popen.return_value.__enter__.return_value
                     process.wait.return_value = code
 
                     def start_process(*args, **kwargs):
+                        kwargs["stdout"].write(b"NKAS console output\n")
                         path = Path(kwargs["env"][runner.STATUS_PATH_ENV])
                         path.write_text("old NKAS End task message\n" + "".join(
                             f"{runner.STATUS}{item}\n" for item in reports
@@ -45,9 +47,16 @@ class TestNkasIntegration(unittest.TestCase):
 
                     popen.side_effect = start_process
                     log = Mock()
-                    self.assertEqual(runner.run_nkas(root, "nkas", log), expected)
+                    diagnostics = root / "child.log"
+                    if expected is None:
+                        runner.run_nkas(root, "nkas", log, diagnostics)
+                    else:
+                        with self.assertRaisesRegex(ValueError, expected + ".*child.log"):
+                            runner.run_nkas(root, "nkas", log, diagnostics)
                     self.assertEqual(log.call_count, len(reports))
                     self.assertEqual(popen.call_args.kwargs["cwd"], root)
+                    self.assertEqual(popen.call_args.kwargs["stderr"], runner.subprocess.STDOUT)
+                    self.assertEqual(diagnostics.read_bytes(), b"NKAS console output\n")
 
     def test_registration_sets_native_configuration_and_explicit_failures(self):
         with tempfile.TemporaryDirectory(prefix="NKAS folder ") as directory:
@@ -72,6 +81,7 @@ class TestNkasIntegration(unittest.TestCase):
             settings = request.call_args_list[1].args[2]["data"]
             self.assertFalse(settings["Game"]["Enabled"])
             self.assertEqual(settings["Script"]["SuccessLog"], NKAS_SUCCESS)
+            self.assertEqual(settings["Script"]["ErrorLog"], NKAS_FAILURE)
             run_args, config_args = settings["Script"]["Arguments"].split("|")
             self.assertEqual(shlex.split(run_args)[-2:], [(adapter / "run.py").as_posix(), "--uu"])
             self.assertEqual(shlex.split(config_args)[-2:], [(adapter / "run.py").as_posix(), "--configure"])
@@ -119,4 +129,10 @@ class TestNkasIntegration(unittest.TestCase):
         timestamp = "2026-11-27 15:10:09.987654 "
         self.assertIsNotNone(re.search(NKAS_SUCCESS, f"{timestamp}{runner.DONE}\n"))
         self.assertIsNone(re.search(NKAS_SUCCESS, f"{timestamp}quoted {runner.DONE}\n"))
-        self.assertIsNotNone(re.search(NKAS_FAILURE, f"{timestamp}{runner.FAILED} NKAS 退出\n"))
+        failure = f"{timestamp}{runner.FAILED} NKAS 启动器路径为空"
+        for line_end in ("", "\n", "\r\n"):
+            with self.subTest(line_end=line_end):
+                run_log = "\n".join(("previous message", failure + line_end))
+                self.assertEqual(re.search(NKAS_FAILURE, run_log).group(), failure)
+        self.assertEqual(re.search(NKAS_FAILURE, failure + "\nnext line").group(), failure)
+        self.assertIsNone(re.search(NKAS_FAILURE, f"{timestamp}{runner.FAILED}_EXAMPLE"))

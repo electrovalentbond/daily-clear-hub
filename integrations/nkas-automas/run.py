@@ -61,21 +61,22 @@ def boost(settings: dict, log) -> None:
         raise ValueError("UU 未确认游戏已加速")
 
 
-def run_nkas(upstream: Path, profile: str, log) -> bool:
+def run_nkas(upstream: Path, profile: str, log, diagnostic_log: Path) -> None:
     python = upstream / "toolkit" / "python.exe"
     if not python.is_file() or not (upstream / "main.py").is_file():
         raise ValueError("没有找到 NKAS 完整包，请重新执行 setup-windows.ps1 -Games nikke")
     command = [str(python), "-X", "utf8", "-u", str(ROOT / "run_once.py"), profile]
     terminal = []
+    failure_detail = ""
     # The upstream launcher can leave detached processes running. Use a
-    # separate status file so inherited console handles cannot block completion.
-    with TemporaryDirectory(prefix="daily-clear-nkas-") as directory:
+    # status file and a regular output file so inherited handles cannot block completion.
+    with TemporaryDirectory(prefix="daily-clear-nkas-") as directory, diagnostic_log.open("wb") as output:
         report = Path(directory) / "status.log"
         report.touch()
         env = {**os.environ, STATUS_PATH_ENV: str(report)}
         with subprocess.Popen(
             command, cwd=upstream, env=env, stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            stdout=output, stderr=subprocess.STDOUT,
         ) as process, report.open(encoding="utf-8") as stream:
             while True:
                 try:
@@ -90,12 +91,18 @@ def run_nkas(upstream: Path, profile: str, log) -> bool:
                         break
                     if line.startswith(STATUS):
                         message = line[len(STATUS):].strip()
-                        state = message.split(" ", 1)[0]
+                        state, _, detail = message.partition(" ")
                         if state in SUCCESS_STATES or state in {"failed", "stopped"}:
                             terminal.append(state)
+                        if state == "failed" and detail:
+                            failure_detail = detail
                         log(f"NKAS {message}")
                 if code is not None:
-                    return code == 0 and terminal in (["complete"], ["already_complete"])
+                    break
+    if code == 0 and len(terminal) == 1 and terminal[0] in SUCCESS_STATES:
+        return
+    reason = failure_detail or f"NKAS 未确认本轮完成（退出码 {code}）"
+    raise ValueError(f"{reason}。子进程日志 {diagnostic_log.name}")
 
 
 def load_settings() -> tuple[dict, Path, str]:
@@ -167,7 +174,8 @@ def main() -> int:
             print(exc, file=sys.stderr, flush=True)
             return 1
     started = datetime.now()
-    path = ROOT / "logs" / f"run-{started:%Y%m%d-%H%M%S-%f}.log"
+    run_id = f"{started:%Y%m%d-%H%M%S-%f}"
+    path = ROOT / "logs" / f"run-{run_id}.log"
     with path.open("x", encoding="utf-8", buffering=1) as stream:
         def log(message: str) -> None:
             print(f"{datetime.now():%Y-%m-%d %H:%M:%S.%f} {message}", file=stream, flush=True)
@@ -182,8 +190,7 @@ def main() -> int:
                     raise ValueError("找不到该 NKAS 实例的配置，请先在 NKAS 保存一次")
                 if args.uu:
                     boost(settings, log)
-                if not run_nkas(upstream, profile, log):
-                    raise ValueError("NKAS 未确认本轮完成，请查看 NKAS 自己的 log 目录")
+                run_nkas(upstream, profile, log, path.with_name(f"child-{run_id}.log"))
         except (AttributeError, KeyError, OSError, TypeError, ValueError, subprocess.SubprocessError) as exc:
             log(f"{FAILED} {exc}")
             return 1

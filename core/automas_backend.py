@@ -28,7 +28,7 @@ _MAA_PROJECTS = {
 AUTOMAS_GAMES = frozenset((*_SPECIALIZED_GAMES.values(), *_MAA_PROJECTS, "nikke"))
 NKAS_ADAPTER = "nikke-automas"
 NKAS_SUCCESS = r"(?:^|\n)\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6} DCH_NKAS_DONE(?:\r?\n|$)"
-NKAS_FAILURE = r"(?:^|\n)\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6} DCH_NKAS_FAILED(?: |\r?\n|$)"
+NKAS_FAILURE = r"(?m)^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6} DCH_NKAS_FAILED(?: [^\r\n]*)?(?=\r?$)"
 _ACCOUNT_TOTALS = re.compile(r"^ {4}已完成账号数：([0-9]+)；未完成账号数：([0-9]+)$", re.MULTILINE)
 _MAX_RESPONSE = 4 * 1024 * 1024
 

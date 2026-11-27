@@ -4,6 +4,7 @@ import os
 import re
 import signal
 import sys
+import traceback
 from collections import Counter
 from datetime import datetime
 from pathlib import Path
@@ -95,7 +96,15 @@ def run_profile(profile):
                 if missing:
                     raise RunError(f"仍有任务未完成（{', '.join(sorted(missing))}）")
                 raise QueueDrained
-            return super().get_next_task()
+            command = super().get_next_task()
+            if (
+                self.config.Client_Platform == "win"
+                and not (self.is_first_task and command == "Restart")
+                and not self.is_independent_task(command)
+                and not self.config.PCClientInfo_LauncherPath
+            ):
+                raise RunError("NKAS 启动器路径为空，请在「通用配置 → PC 客户端」选择 nikke_launcher.exe")
+            return command
 
         def start(self):
             # Upstream run() returns True if a task encountered a login screen
@@ -179,7 +188,8 @@ def main(argv):
         status("failed", str(exc))
         return 1
     except Exception as exc:
-        status("failed", f"{type(exc).__name__}，请查看 NKAS 的 log 目录")
+        traceback.print_exc()
+        status("failed", f"NKAS 内部错误 {type(exc).__name__}")
         return 1
     status(result)
     return 130 if result == "stopped" else 0
