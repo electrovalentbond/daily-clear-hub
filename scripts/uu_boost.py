@@ -15,7 +15,7 @@ from pathlib import Path
 
 
 _CLIENTS = {"uu.exe", "uu_launcher.exe"}
-_SEARCH_LABELS = {"搜索", "搜索游戏", "搜索游戏/应用", "请输入游戏名称", "搜索游戏名称"}
+_SEARCH_LABELS = {"搜索", "搜索游戏", "搜索游戏/应用", "搜索对应游戏名", "请输入游戏名称", "搜索游戏名称"}
 _START = {"开始加速", "立即加速", "一键加速"}
 _REGION_LABELS = {"游戏服", "区服", "游戏区服", "加速区服", "选择区服"}
 _STOP_NOTICES = (
@@ -54,6 +54,10 @@ class Label:
         return self.rect[3] - self.rect[1]
 
 
+def point(text: str, x: int, y: int) -> Label:
+    return Label(text, (x, y, x + 1, y + 1))
+
+
 @dataclass(frozen=True)
 class Page:
     width: int
@@ -75,35 +79,77 @@ class Page:
             matches.append(label)
         return matches
 
-    def search(self, previous_query: str) -> Label | None:
+    def _navigation_row(self) -> Label | None:
+        homes = [
+            home for home in self.exact({"首页"})
+            if home.x < self.width / 3 and home.y < self.height / 6
+            and any(
+                home.x < tab.x < self.width / 2
+                and abs(home.y - tab.y) <= home.height
+                for tab in self.exact({"游戏"})
+            )
+        ]
+        return homes[0] if len(homes) == 1 else None
+
+    def search(self, query: str) -> Label | None:
+        navigation = self._navigation_row()
+
+        def in_search_bar(label: Label) -> bool:
+            if navigation is None:
+                return label.y < self.height / 4
+            return (
+                self.width * 0.68 < label.x < self.width * 0.92
+                and abs(label.y - navigation.y) <= max(label.height, navigation.height)
+            )
+
         edits = [
             label for label in self.labels
-            if label.role == "Edit" and label.y < self.height / 4
+            if label.role == "Edit" and in_search_bar(label)
         ]
         if len(edits) == 1:
             return edits[0]
-        names = _SEARCH_LABELS | ({previous_query} if previous_query else set())
+        names = _SEARCH_LABELS | {query}
+        # OCR can read the magnifying-glass icon as "Q" before the text.
+        names |= {"q" + normalize(name) for name in names}
         options = [
             label for label in self.exact(names)
-            if label.y < self.height / 4
+            if in_search_bar(label)
         ]
         if len(options) == 1:
             return options[0]
-        # Some versions keep the old query in a custom-drawn field with no
-        # accessible edit. The search field is on the dynamic wallpaper row.
-        navigation = self.exact({"动态壁纸"})
-        if len(navigation) == 1:
-            tab = navigation[0]
-            trailing = [
-                label for label in self.labels
-                if not label.role and label.rect[0] > tab.rect[2]
-                and abs(label.y - tab.y) <= max(label.height, tab.height)
-            ]
-            if len(trailing) == 1:
-                return trailing[0]
+        if navigation and not edits and not options:
+            # The custom-drawn field remains on the right of the main tabs,
+            # including when it contains a previous game's search text.
+            return point("搜索", round(self.width * 0.82), navigation.y)
         return None
 
-    def search_result(self, search: Label, game: str) -> Label | None:
+    def _results_heading(self) -> Label | None:
+        for heading in self.exact({"搜索结果"}):
+            if heading.x >= self.width / 4 or heading.y >= self.height / 3:
+                continue
+            if any(
+                heading.rect[2] < label.x < self.width * 0.75
+                and abs(label.y - heading.y) <= heading.height
+                and re.fullmatch(r"共\d+个搜索结果", normalize(label.text))
+                for label in self.labels
+            ):
+                return heading
+        return None
+
+    def search_result(self, search: Label | None, game: str) -> Label | None:
+        heading = self._results_heading()
+        if heading:
+            cards = [
+                label for label in self.exact({game})
+                if label.x > self.width / 4 and label.y > heading.y + 4 * heading.height
+            ]
+            if len(cards) == 1:
+                card = cards[0]
+                # The full results page puts the title below the clickable cover.
+                return point(card.text, card.x, card.y - 3 * card.height)
+            return None
+        if search is None:
+            return None
         # Search suggestions are anchored to the search box. The search text
         # itself and a same-name tile elsewhere in the library are separate.
         options = [
@@ -112,6 +158,27 @@ class Page:
             and abs(label.x - search.x) < self.width / 4
         ]
         return options[0] if len(options) == 1 else None
+
+    def home_card(self, game: str) -> Label | None:
+        if self._navigation_row() is None or not any(
+            label.y > self.height * 0.73
+            and re.fullmatch(r"我的游戏(?:\(\d+\))?", normalize(label.text))
+            for label in self.labels
+        ):
+            return None
+        cards = [
+            label for label in self.exact({game})
+            if self.height * 0.50 < label.y < self.height * 0.73
+        ]
+        return cards[0] if len(cards) == 1 else None
+
+    def home_start(self, card: Label) -> Label | None:
+        buttons = [
+            button for button in self.exact(_START)
+            if 0 < card.y - button.y < self.height / 5
+            and abs(button.x - card.x) < self.width / 10
+        ]
+        return buttons[0] if len(buttons) == 1 else None
 
     def titled_action(self, game: str, words: set[str]) -> Label | None:
         pairs = [
@@ -343,24 +410,31 @@ class DesktopClient:
                 labels.append(Label(info.name or "", relative, info.control_type))
         return labels
 
-    def click(self, label: Label) -> None:
+    def _point(self, label: Label) -> tuple[int, int]:
         self._focus()
         current = self.window.rectangle()
         if current != self.rect:
             raise BoostError("UU 窗口在识别后移动，请重试")
         point = (current.left + label.x, current.top + label.y)
+        hit = self.gui.WindowFromPoint(point)
+        if hit != self.window.handle and not self.gui.IsChild(self.window.handle, hit):
+            raise BoostError("UU 控件被其他窗口遮挡，请重试")
+        return point
+
+    def click(self, label: Label) -> None:
         try:
-            hit = self.gui.WindowFromPoint(point)
-            if hit != self.window.handle and not self.gui.IsChild(self.window.handle, hit):
-                raise BoostError("UU 控件被其他窗口遮挡，请重试")
-            self.mouse.click(coords=point)
+            self.mouse.click(coords=self._point(label))
         except BoostError:
             raise
         except self.window_errors as exc:
             raise BoostError("无法点击 UU 控件，请检查窗口权限") from exc
 
+    def hover(self, label: Label) -> None:
+        self.mouse.move(coords=self._point(label))
+
     def enter_search(self, label: Label, query: str) -> None:
         self.click(label)
+        time.sleep(0.25)
         if self.gui.GetForegroundWindow() != self.window.handle:
             raise BoostError("UU 搜索框未取得焦点")
         self.keyboard.send_keys("^a{BACKSPACE}")
@@ -375,7 +449,10 @@ class DesktopClient:
 def boost(client: DesktopClient, game: str, query: str, region: str, timeout: float) -> None:
     deadline = time.monotonic() + timeout
     client.attach(deadline)
-    searched = False
+    print("已连接 UU 窗口", flush=True)
+    search_attempts = 0
+    search_again_at = 0.0
+    home_hovered = False
     opened = False
     stopping = False
     stopped_dialog = False
@@ -386,7 +463,7 @@ def boost(client: DesktopClient, game: str, query: str, region: str, timeout: fl
     region_chosen = False
     reason = "未找到已登录的 UU 游戏页面"
 
-    while time.monotonic() < deadline:
+    while (now := time.monotonic()) < deadline:
         page = client.page()
         active = page.active_button()
         game_active = bool(active and page.titled_action(game, {"停止加速"}))
@@ -411,7 +488,9 @@ def boost(client: DesktopClient, game: str, query: str, region: str, timeout: fl
                     active_missing += 1
                     stopping = active_missing < 2
                     if not stopping:
-                        searched = opened = start_clicked = False
+                        search_attempts = 0
+                        search_again_at = 0.0
+                        home_hovered = opened = start_clicked = False
                         stopped_dialog = False
                         region_clicked = region_chosen = False
                 reason = "旧加速会话未停止，请检查 UU 是否有弹窗"
@@ -430,20 +509,38 @@ def boost(client: DesktopClient, game: str, query: str, region: str, timeout: fl
             elif (start := page.titled_action(game, _START)):
                 if region_matches:
                     client.click(start)
+                    print(f"已请求加速「{game}」", flush=True)
                     start_clicked = True
                 elif not region_clicked and field:
                     client.click(field)
                     region_clicked = True
                 reason = f"等待 UU 识别可用的加速按钮或区服「{region}」"
             elif not opened:
-                search = page.search(query if searched else "")
-                if search is not None and not searched:
-                    client.enter_search(search, query)
-                    searched = True
-                elif search is not None and (result := page.search_result(search, game)):
+                card = page.home_card(game) if not region and not search_attempts else None
+                search = page.search(query)
+                if card and (button := page.home_start(card)):
+                    client.click(button)
+                    print(f"已从 UU 首页请求加速「{game}」", flush=True)
+                    start_clicked = True
+                    reason = "已请求加速，未观察到指定游戏就绪"
+                elif card and not home_hovered:
+                    client.hover(point(card.text, card.x, card.y - 4 * card.height))
+                    home_hovered = True
+                    reason = f"已识别 UU 首页的「{game}」，未识别到加速按钮"
+                elif (result := page.search_result(search if search_attempts else None, game)):
                     client.click(result)
+                    print(f"已选择 UU 同名游戏「{game}」", flush=True)
                     opened = True
-                reason = f"未找到名称准确匹配「{game}」的搜索结果"
+                    reason = f"已选择「{game}」，未识别到加速控件"
+                elif search is not None:
+                    if search_attempts < 3 and now >= search_again_at:
+                        client.enter_search(search, query)
+                        search_attempts += 1
+                        search_again_at = now + 4
+                        print(f"正在搜索 UU 游戏「{query}」（第 {search_attempts} 次）", flush=True)
+                    reason = f"已搜索「{query}」，未识别到唯一的同名游戏「{game}」"
+                elif not search_attempts:
+                    reason = "未识别到 UU 搜索框"
             else:
                 reason = f"已打开「{game}」，未识别到加速控件"
         time.sleep(0.65)

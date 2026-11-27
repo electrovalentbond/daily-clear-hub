@@ -14,6 +14,9 @@ RESULT = label("学园偶像大师", 810, 104, "ListItem")
 STOP = label("停止加速", 223, 347)
 START = label("立即加速", 223, 347)
 CONFIRM = label("确定", 432, 456)
+NAVIGATION = (label("首页", 182, 50), label("游戏", 260, 50), label("云存档", 345, 50))
+HOME_CARD = Label("学园偶像大师", (92, 429, 207, 456))
+HOME_START = label("立即加速", 148, 375)
 
 
 def page(*labels):
@@ -41,13 +44,76 @@ class TestClient:
     def click(self, target):
         self.actions.append(("click", target))
 
+    def hover(self, target):
+        self.actions.append(("hover", target))
+
 
 class UuBoostTests(unittest.TestCase):
     def run_boost(self, client, *, region=""):
         with patch("scripts.uu_boost.time.sleep"), patch(
             "scripts.uu_boost.time.monotonic", side_effect=itertools.count()
-        ):
+        ), patch("builtins.print"):
             boost(client, "学园偶像大师", "学园偶像大师", region, 15)
+
+    def test_search_finds_custom_header_without_dynamic_wallpaper_tab(self):
+        current_query = label("Q学园偶像大师", 815, 49)
+        stale_query = label("Q其他游戏", 804, 50)
+        unrelated_edit = label("修改昵称", 420, 85, "Edit")
+        header = Page(1000, 688, (*NAVIGATION, current_query, unrelated_edit))
+        self.assertEqual(header.search("学园偶像大师"), current_query)
+        header = Page(1000, 688, (*NAVIGATION, stale_query, unrelated_edit))
+        self.assertEqual((header.search("学园偶像大师").x, header.search("学园偶像大师").y), (820, 50))
+
+    def test_full_search_results_use_the_single_exact_card_left_of_search_box(self):
+        result_header = (
+            label("搜索结果", 80, 140), label("共2个搜索结果", 355, 145),
+        )
+        card = label("学园偶像大师", 355, 398)
+        partial = label("学园偶像大师模拟器", 500, 398)
+        full_results = page(*NAVIGATION, *result_header, card, partial)
+        target = detail("学园偶像大师", STOP)
+        client = TestClient(page(), full_results, target, target)
+        self.run_boost(client)
+        action, selected = client.actions[1]
+        self.assertEqual(client.actions[0], ("search", SEARCH, "学园偶像大师"))
+        self.assertEqual((action, selected.text, selected.x), ("click", card.text, card.x))
+        self.assertLess(selected.y, card.y)
+        self.assertIsNone(full_results.search_result(SEARCH, "学园偶像"))
+        duplicate = label("学园偶像大师", 510, 398)
+        self.assertIsNone(page(*result_header, card, duplicate, RESULT).search_result(SEARCH, card.text))
+
+    def test_uses_verified_start_on_same_name_home_card(self):
+        home_labels = (*NAVIGATION, label("我的游戏（80）", 880, 535), HOME_CARD)
+        home = Page(1000, 688, home_labels)
+        other_start = label("立即加速", 383, 375)
+        hovered = Page(1000, 688, (*home_labels, HOME_START, other_start))
+        target = detail("学园偶像大师", STOP)
+        client = TestClient(home, hovered, target, target)
+        self.run_boost(client)
+        action, cover = client.actions[0]
+        self.assertEqual((action, cover.x, cover.y), ("hover", HOME_CARD.x, 334))
+        self.assertEqual(client.actions[1:], [("click", HOME_START)])
+
+    def test_explicit_region_does_not_quick_start_from_home(self):
+        home = page(*NAVIGATION, label("我的游戏", 880, 535), HOME_CARD, HOME_START)
+        target = detail("学园偶像大师", STOP, label("游戏服：日服", 410, 330))
+        client = TestClient(home, page(RESULT), target, target)
+        self.run_boost(client, region="日服")
+        self.assertEqual(client.actions, [("search", SEARCH, "学园偶像大师"), ("click", RESULT)])
+
+    def test_reports_missing_search_field_before_attempting_to_match_a_game(self):
+        client = TestClient(*([Page(1000, 688, ())] * 15))
+        with self.assertRaisesRegex(BoostError, "未识别到 UU 搜索框"):
+            self.run_boost(client)
+        self.assertEqual(client.actions, [])
+
+    def test_retries_search_if_first_input_yields_no_results(self):
+        target = detail("学园偶像大师", STOP)
+        client = TestClient(*([page()] * 5), page(RESULT), target, target)
+        self.run_boost(client)
+        self.assertEqual(client.actions, [
+            ("search", SEARCH, "学园偶像大师"), ("search", SEARCH, "学园偶像大师"), ("click", RESULT),
+        ])
 
     def test_search_ignores_partial_name_and_same_name_outside_suggestions(self):
         same_name_tile = label("学园偶像大师", 150, 390)
