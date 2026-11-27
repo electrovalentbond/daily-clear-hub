@@ -136,6 +136,17 @@ def run_scheduler(profile):
                 missing = (self.due_tasks - self.finished) | self.unresolved
                 if missing:
                     raise RunError(f"仍有任务未完成（{', '.join(sorted(missing))}）")
+                # Finite runs exit before the native scheduler enters its idle wait.
+                if (
+                    self.finished
+                    and "device" in self.__dict__
+                    and config.Optimization_WhenTaskQueueEmpty == "close_game"
+                ):
+                    try:
+                        self.idle_cleanup(task=None, method="close_game")
+                    except Exception as exc:
+                        traceback.print_exc()
+                        raise RunError("NKAS 日常已完成，但关闭游戏失败，请查看本轮日志") from exc
                 raise QueueDrained
             command = super().get_next_task()
             if (

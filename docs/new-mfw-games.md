@@ -29,6 +29,10 @@ NIKKE 国际服使用开源 [NIKKEAutoScript（NKAS）](https://github.com/megum
 
 3. 在 AUTO-MAS「调度队列 → 添加任务」加入 **NIKKE 国际服（NKAS）**。之后从同一个「通用配置」入口修改 NKAS 的任务开关。单轮结果在 AUTO-MAS 历史记录查看，识别、登录和设备细节在 NKAS 项目的 `log` 目录。若首次安装等待 AUTO-MAS 初始化超时，等应用打开后重跑同一条安装命令。[AUTO-MAS 通用托管](https://doc.auto-mas.top/docs/script-guide/general.html)
 
+**日常成功后关闭游戏**。已安装的用户先 `git pull --ff-only`，再重跑 `& .\scripts\setup-windows.ps1 -Games nikke`。原来使用 UU 时可加 `-WithUu`，自定义安装目录时沿用 `-ToolsRoot`。在 AUTO-MAS 的「NKAS 本机实例 → 通用配置」打开已配置的 `nkas` 实例，选「NKAS设置 → 优化设置 → 当任务队列清空时 → 关闭游戏」。在 NKAS 网页点「保存」，再回 AUTO-MAS 点「保存配置」。本轮有游戏任务且执行成功时，NKAS 会关闭游戏。Windows 下同时关闭 NIKKE 启动器，可以在 AUTO-MAS 日志里找 `Game stop success` 和 `Launcher stop success`。ADB 下模拟器继续运行。[NKAS 优化设置](https://github.com/megumiss/NIKKEAutoScript/wiki/Configuration-Guide.zh-CN#优化设置) · [NKAS 关闭流程](https://github.com/megumiss/NIKKEAutoScript/blob/v1.2.0/main.py#L741-L767)
+
+「重启设置」是 NKAS 内置的客户端维护任务，默认强制启用。在连续调度中到期会重开客户端，部分异常也会触发它。日志如果只列出 `Restart` 的下次执行时间，表示它仍在计划中。[NKAS 重启设置](https://github.com/megumiss/NIKKEAutoScript/wiki/Configuration-Guide.zh-CN#15-重启设置) · [异常重启流程](https://github.com/megumiss/NIKKEAutoScript/blob/v1.2.0/main.py#L173-L186)
+
 若 UU 已加速但 NKAS 报 `Launcher path must be specified`，进入该账号的「通用配置 → nkas → PC 客户端」，在「启动器路径」选中实际安装的 `nikke_launcher.exe`，然后保存。已选择「国际」时仍需指定启动器路径。AUTO-MAS 的失败摘要会显示启动检查的结果。适配器的 `nikke-automas\logs` 下，`run-*.log` 是运行记录，同一时间的 `child-*.log` 是 NKAS 子进程输出。用 Windows PowerShell 读取日志时带上 `-Encoding UTF8`。[NKAS 路径配置](https://github.com/megumiss/NIKKEAutoScript/wiki/Quick-Installation-Guide.zh-CN#4-选择游戏路径)
 
 运行时，在 AUTO-MAS「调度中心」打开当前运行面板的「日志」，点「保持最新」。这里会同步 NKAS 的任务阶段、识别到的控件点击和报错等 INFO 及以上消息。运行结束后，从「历史记录」打开本次日志。[AUTO-MAS 调度日志面板](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/frontend/src/views/scheduler/index.vue#L111-L123)
