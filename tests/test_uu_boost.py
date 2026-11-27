@@ -5,14 +5,15 @@ from unittest.mock import patch
 from scripts.uu_boost import BoostError, Label, Page, boost
 
 
-def label(text, x, y, role=""):
-    return Label(text, (x - 20, y - 9, x + 20, y + 9), role)
+def label(text, x, y, role="", enabled=None):
+    return Label(text, (x - 20, y - 9, x + 20, y + 9), role, enabled)
 
 
 SEARCH = label("搜索游戏", 810, 49, "Edit")
 RESULT = label("学园偶像大师", 810, 104, "ListItem")
 STOP = label("停止加速", 223, 347)
 START = label("立即加速", 223, 347)
+LAUNCH = label("启动游戏", 95, 347)
 CONFIRM = label("确定", 432, 456)
 NAVIGATION = (label("首页", 182, 50), label("游戏", 260, 50), label("云存档", 345, 50))
 HOME_CARD = Label("学园偶像大师", (92, 429, 207, 456))
@@ -49,11 +50,50 @@ class TestClient:
 
 
 class UuBoostTests(unittest.TestCase):
-    def run_boost(self, client, *, region=""):
+    def run_boost(self, client, *, region="", launch_game=False):
         with patch("scripts.uu_boost.time.sleep"), patch(
             "scripts.uu_boost.time.monotonic", side_effect=itertools.count()
         ), patch("builtins.print"):
-            boost(client, "学园偶像大师", "学园偶像大师", region, 15)
+            boost(client, "学园偶像大师", "学园偶像大师", region, 15, launch_game=launch_game)
+
+    def test_launch_is_opt_in_and_clicks_once_on_verified_game_and_region(self):
+        target = detail("学园偶像大师", STOP, LAUNCH, label("游戏服：日服", 410, 330))
+        client = TestClient(target, target)
+        self.run_boost(client, region="日服")
+        self.assertEqual(client.actions, [])
+
+        client = TestClient(target, target)
+        with patch.object(client, "page", wraps=client.page) as read_page:
+            self.run_boost(client, region="日服", launch_game=True)
+        self.assertEqual(read_page.call_count, 2)
+        self.assertEqual(client.actions, [("click", LAUNCH)])
+
+    def test_launch_requires_unambiguous_available_button_in_active_row(self):
+        for controls in (
+            (),
+            (LAUNCH, label("启动游戏", 155, 347)),
+            (LAUNCH, label("启动游戏", 95, 347, "Button", False)),
+            (label("启动游戏", 95, 395),),
+        ):
+            with self.subTest(controls=controls):
+                target = detail("学园偶像大师", STOP, *controls)
+                client = TestClient(*([target] * 15))
+                with self.assertRaisesRegex(BoostError, "已加速，未识别到唯一可用的「启动游戏」按钮"):
+                    self.run_boost(client, launch_game=True)
+                self.assertEqual(client.actions, [])
+
+    def test_launch_stays_blocked_during_purchase_prompt_or_other_game(self):
+        target = detail("学园偶像大师", STOP, LAUNCH, label("立即购买", 500, 390))
+        client = TestClient(*([target] * 15))
+        with self.assertRaisesRegex(BoostError, "确认、登录或会员提示"):
+            self.run_boost(client, launch_game=True)
+        self.assertEqual(client.actions, [])
+
+        other = detail("边狱公司", STOP, LAUNCH)
+        client = TestClient(*([other] * 15))
+        with self.assertRaisesRegex(BoostError, "旧加速会话未停止"):
+            self.run_boost(client, launch_game=True)
+        self.assertEqual(client.actions, [("click", STOP)])
 
     def test_search_finds_custom_header_without_dynamic_wallpaper_tab(self):
         current_query = label("Q学园偶像大师", 815, 49)

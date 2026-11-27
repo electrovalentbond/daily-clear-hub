@@ -17,6 +17,7 @@ from pathlib import Path
 _CLIENTS = {"uu.exe", "uu_launcher.exe"}
 _SEARCH_LABELS = {"搜索", "搜索游戏", "搜索游戏/应用", "搜索对应游戏名", "请输入游戏名称", "搜索游戏名称"}
 _START = {"开始加速", "立即加速", "一键加速"}
+_LAUNCH = {"启动游戏"}
 _REGION_LABELS = {"游戏服", "区服", "游戏区服", "加速区服", "选择区服"}
 _STOP_NOTICES = (
     "重新加速将断开正在加速游戏连接",
@@ -40,6 +41,7 @@ class Label:
     text: str
     rect: tuple[int, int, int, int]
     role: str = ""
+    enabled: bool | None = None
 
     @property
     def x(self) -> int:
@@ -193,8 +195,24 @@ class Page:
 
     def active_button(self) -> Label | None:
         buttons = self.exact({"停止加速"})
-        indicators = self.exact({"启动游戏", "游戏延迟", "丢包率", "网络监控"})
+        indicators = self.exact(_LAUNCH | {"游戏延迟", "丢包率", "网络监控"})
         return buttons[0] if len(buttons) == 1 and indicators else None
+
+    def launch_button(self, game: str, active: Label) -> Label | None:
+        button = self.titled_action(game, _LAUNCH)
+        if button is None or (
+            abs(button.x - active.x) >= self.width / 4
+            or abs(button.y - active.y) > max(button.height, active.height)
+        ):
+            return None
+        # UIA and OCR can report separate labels for the same button.
+        disabled = any(
+            label.enabled is False and normalize(label.text) in _LAUNCH
+            and abs(label.x - button.x) <= max(label.height, button.height)
+            and abs(label.y - button.y) <= min(label.height, button.height)
+            for label in self.labels
+        )
+        return None if disabled else button
 
     def has_confirmation(self) -> bool:
         payment = self.exact({"立即支付", "立即购买", "立即开通", "确认支付", "开通会员"})
@@ -400,6 +418,10 @@ class DesktopClient:
                 if info.control_type not in {"Edit", "Button", "Text", "ListItem", "ComboBox"}:
                     continue
                 rect = control.rectangle()
+                text = info.name or ""
+                enabled = None
+                if info.control_type == "Button" and normalize(text) in _LAUNCH:
+                    enabled = bool(control.is_enabled())
             except self.window_errors:
                 continue
             relative = (
@@ -407,7 +429,7 @@ class DesktopClient:
                 rect.right - self.rect.left, rect.bottom - self.rect.top,
             )
             if 0 <= relative[0] < relative[2] <= width and 0 <= relative[1] < relative[3] <= height:
-                labels.append(Label(info.name or "", relative, info.control_type))
+                labels.append(Label(text, relative, info.control_type, enabled))
         return labels
 
     def _point(self, label: Label) -> tuple[int, int]:
@@ -446,7 +468,10 @@ class DesktopClient:
         )
 
 
-def boost(client: DesktopClient, game: str, query: str, region: str, timeout: float) -> None:
+def boost(
+    client: DesktopClient, game: str, query: str, region: str, timeout: float,
+    *, launch_game: bool = False,
+) -> None:
     deadline = time.monotonic() + timeout
     client.attach(deadline)
     print("已连接 UU 窗口", flush=True)
@@ -466,7 +491,7 @@ def boost(client: DesktopClient, game: str, query: str, region: str, timeout: fl
     while (now := time.monotonic()) < deadline:
         page = client.page()
         active = page.active_button()
-        game_active = bool(active and page.titled_action(game, {"停止加速"}))
+        game_active = page.titled_action(game, {"停止加速"}) if active else None
         field, region_matches = page.region_field(region) if region else (None, True)
         if page.has_confirmation():
             ready_frames = 0
@@ -478,7 +503,15 @@ def boost(client: DesktopClient, game: str, query: str, region: str, timeout: fl
         elif game_active and region_matches and not stopping:
             ready_frames += 1
             if ready_frames >= 2:
-                return
+                if not launch_game:
+                    return
+                if ready_frames == 2:
+                    print(f"UU 已确认「{game}」加速就绪，准备启动游戏", flush=True)
+                if launch := page.launch_button(game, game_active):
+                    client.click(launch)
+                    print("已点击 UU 的「启动游戏」", flush=True)
+                    return
+                reason = f"「{game}」已加速，未识别到唯一可用的「启动游戏」按钮"
         else:
             ready_frames = 0
             if stopping:
@@ -554,6 +587,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--region", default="", help="可选的 UU 区服显示名称")
     parser.add_argument("--exe", type=Path, help="已安装的 uu_launcher.exe 或 uu.exe")
     parser.add_argument("--timeout", type=float, default=90, help="最多等待秒数（默认 90）")
+    parser.add_argument("--launch-game", action="store_true", help="加速就绪后点击 UU 的启动游戏")
     args = parser.parse_args(argv)
     if os.name != "nt":
         parser.error("UU 桌面控制仅支持 Windows")
@@ -563,9 +597,13 @@ def main(argv: list[str] | None = None) -> int:
     if not 0 < args.timeout <= 600:
         parser.error("--timeout 必须在 0 到 600 秒之间")
     try:
-        boost(DesktopClient(args.exe), args.game, query, args.region.strip(), args.timeout)
+        boost(
+            DesktopClient(args.exe), args.game, query, args.region.strip(), args.timeout,
+            launch_game=args.launch_game,
+        )
     except (OSError, RuntimeError) as exc:
-        print(f"UU 加速未就绪，{exc}", file=sys.stderr)
+        failure = "UU 加速或启动失败" if args.launch_game else "UU 加速未就绪"
+        print(f"{failure}，{exc}", file=sys.stderr)
         return 1
     print(f"UU 已加速「{args.game}」" + (f"「{args.region}」" if args.region else ""))
     return 0

@@ -5,11 +5,20 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 from pathlib import Path
+
+if __package__:
+    from .dmm_project import CONTROLLERS
+    from .uu_boost import main as boost
+else:
+    from dmm_project import CONTROLLERS
+    from uu_boost import main as boost
 
 
 TASK_NAME = "DailyClearHubUuBoost"
 OPTION_NAME = "DailyClearHubUuSettings"
+LAUNCH_OPTION = "DailyClearHubUuLaunchGame"
 OPTIONS_ENV = "DAILY_CLEAR_HUB_UU_OPTIONS"
 PROJECTS = {
     "gakumas": ("DailyClearHubUuGakumas", "学园偶像大师（含 UU）"),
@@ -38,17 +47,18 @@ def prepare(game: str, source: Path, destination: Path, python: Path, runner: Pa
         {
             "name": TASK_NAME,
             "label": "切换网易 UU 加速",
-            "description": "确认所填游戏已加速后再连接游戏。请输入 UU 界面显示的完整名称。",
+            "description": "确认所填游戏已加速，可选在 UU 内启动 DMM 游戏。请输入 UU 界面显示的完整名称。",
             "exec": "powershell",
             "args": [
                 "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
-                "-File", "{PROJECT_DIR}/daily-clear-uu.ps1",
+                "-File", "{PROJECT_DIR}/daily-clear-uu.ps1", "-DmmGame", game,
             ],
-            "option": [OPTION_NAME],
+            "option": [OPTION_NAME, LAUNCH_OPTION],
         },
         *(task for task in pretasks if task.get("name") != TASK_NAME),
     ]
-    interface.setdefault("option", {})[OPTION_NAME] = {
+    options = interface.setdefault("option", {})
+    options[OPTION_NAME] = {
         "type": "input",
         "label": "UU 加速设置",
         "inputs": [
@@ -56,6 +66,14 @@ def prepare(game: str, source: Path, destination: Path, python: Path, runner: Pa
             {"name": "region", "label": "区服选项（可留空）", "default": ""},
             {"name": "exe", "label": "UU 程序路径（可留空）", "default": ""},
         ],
+    }
+    options[LAUNCH_OPTION] = {
+        "type": "switch",
+        "label": "UU 加速后启动 DMM 游戏",
+        "description": "点击 UU 的「启动游戏」，等游戏窗口出现后再交给 AUTO-MAS。",
+        "controller": [CONTROLLERS[game]],
+        "default_case": "No",
+        "cases": [{"name": "Yes"}, {"name": "No"}],
     }
     write_json(destination.with_name("daily-clear-uu.json"), {"python": str(python), "runner": str(runner)})
     write_json(destination, interface)
@@ -74,7 +92,22 @@ def boost_arguments(raw_options: str) -> list[str]:
         value = settings.get(field, "")
         if isinstance(value, str) and value.strip():
             arguments.append(f"--{field}={value.strip()}")
+    if options.get(LAUNCH_OPTION) == "Yes":
+        arguments.append("--launch-game")
     return arguments
+
+
+def run_pretask(options: list[str], game: str | None, project_dir: Path) -> int:
+    launch = "--launch-game" in options
+    if launch and not game:
+        raise ValueError("缺少 DMM 游戏启动配置，请重跑带 -WithUu 的安装命令并同步托管")
+    result = boost(options)
+    if result or not launch:
+        return result
+    return subprocess.run([
+        "powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+        "-File", str(project_dir / "daily-clear-dmm.ps1"), "-Game", game, "-WaitOnly",
+    ], check=False).returncode
 
 
 def main() -> int:
@@ -86,20 +119,19 @@ def main() -> int:
     install.add_argument("destination", type=Path)
     install.add_argument("python", type=Path)
     install.add_argument("runner", type=Path)
-    subcommands.add_parser("pretask")
+    pretask = subcommands.add_parser("pretask")
+    pretask.add_argument("--dmm-game", choices=PROJECTS)
+    pretask.add_argument("--project-dir", type=Path, default=Path.cwd())
     args = parser.parse_args()
     if args.command == "prepare":
         prepare(args.game, args.source, args.destination, args.python, args.runner)
         return 0
     try:
         options = boost_arguments(os.environ.get(OPTIONS_ENV) or "{}")
-    except (ValueError, TypeError) as exc:
+        return run_pretask(options, args.dmm_game, args.project_dir)
+    except (OSError, ValueError, TypeError) as exc:
         print(f"UU 前置任务失败：{exc}", flush=True)
         return 1
-
-    from uu_boost import main as boost
-
-    return boost(options)
 
 
 if __name__ == "__main__":

@@ -72,7 +72,7 @@ git pull --ff-only
 - **终末地** 导入 MaaEnd，PC 官服选择 `Win32-Front` 和「官服」。在「PC 游戏启动方式」选择「由脚本自身控制游戏」。打开账号的「任务队列」，添加并启用「🚀启动游戏（PC）」，区服选择「国服 (官方启动器)」，启动器路径先用「自动判断」。它会通过官方启动器打开游戏，再运行日常奖励、清理智和基建等已选任务。前台控制期间保持桌面解锁。[启动器设置及排查](maa-upstream.md#明日方舟终末地)
 - **崩坏学园 2** 导入 MaaBH2，选「雷电模拟器」和「默认」，绑定已登录的模拟器实例并填写对应渠道包名。B 服用 `com.miHoYo.HSoDv2BiliBiliRelease`。AUTO-MAS 会启动绑定的游戏，任务队列可以从「10. 每日每周任务奖励领取」开始。[MaaBH2 设置](maabh2.md)
 - **公主连结 B 服** 导入 `pcr AUTO-MAS project:` 后面的目录，选「安卓模拟器」和「哔哩哔哩国服」，绑定已登录的模拟器实例。「游戏包名」留空即可，pcr-script 会启动 B 服客户端。在账号的任务队列应用「基础日常」预设，或逐项添加任务。取消某项勾选即可跳过。日程表的扫荡项目和资源用量沿用游戏内设置。[公主连结配置](pcr-upstream.md) · [任务与美食嘉年华领奖](pcr-upstream.md#领取任务奖励和美食嘉年华奖励) · [究极炼成领奖](pcr-upstream.md#领取究极炼成奖励) · [新剧情活动扫荡](pcr-upstream.md#活动困难关卡扫荡) · [复刻困难与 VH 扫荡](pcr-upstream.md#复刻活动日常扫荡)
-- **学园偶像大师和 Dot Abyss** 分别导入 MaaGakumasu 和 `dotabyss AUTO-MAS project:` 对应目录。DMM 客户端可启用「启动 DMM 游戏」前置任务，通过官方快捷方式启动并等待游戏窗口。[游戏配置与自动启动](new-mfw-games.md#从-auto-mas-启动-dmm-游戏)
+- **学园偶像大师和 Dot Abyss** 分别导入 MaaGakumasu 和 `dotabyss AUTO-MAS project:` 对应目录。DMM 客户端可用「启动 DMM 游戏」前置任务从官方快捷方式启动，或在含 UU 托管上启用「UU 加速后启动 DMM 游戏」。[DMM 快捷方式配置](new-mfw-games.md#从-auto-mas-启动-dmm-游戏) · [UU 启动配置](new-mfw-games.md#学园偶像大师和-dot-abyss)
 
 ### NIKKE 国际服
 

@@ -270,7 +270,7 @@ function Install-UuRuntime {
     Invoke-CheckedNative $Python @(
         '-m', 'pip', 'install', '--disable-pip-version-check', '-r', (Join-Path $PSScriptRoot 'uu-requirements.txt')
     ) | Out-Host
-    foreach ($Item in @('uu_project.py', 'uu_boost.py')) {
+    foreach ($Item in @('uu_project.py', 'uu_boost.py', 'dmm_project.py')) {
         Copy-Item -LiteralPath (Join-Path $PSScriptRoot $Item) -Destination $UuRoot -Force
     }
     return $Python

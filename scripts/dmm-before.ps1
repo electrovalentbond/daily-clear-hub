@@ -4,7 +4,8 @@ param(
     [Parameter(Mandatory)]
     [ValidateSet('gakumas', 'dotabyss')]
     [string]$Game,
-    [string]$OptionsJson
+    [string]$OptionsJson,
+    [switch]$WaitOnly
 )
 
 $ErrorActionPreference = 'Stop'
@@ -170,9 +171,13 @@ public static class DailyClearHubDmmWindow
         exit 0
     }
 
-    $Uri = Resolve-DmmLaunchUri $Details $ConfiguredShortcut
-    Write-DmmLog "DMM：通过官方启动器请求启动 $($Details.Name)，等待游戏窗口。"
-    Start-Process -FilePath $Uri
+    if ($WaitOnly) {
+        Write-DmmLog "DMM：UU 已请求启动 $($Details.Name)，等待游戏窗口。"
+    } else {
+        $Uri = Resolve-DmmLaunchUri $Details $ConfiguredShortcut
+        Write-DmmLog "DMM：通过官方启动器请求启动 $($Details.Name)，等待游戏窗口。"
+        Start-Process -FilePath $Uri
+    }
 
     $Wait = [Diagnostics.Stopwatch]::StartNew()
     while ($Wait.Elapsed.TotalSeconds -lt 120) {
@@ -187,7 +192,8 @@ public static class DailyClearHubDmmWindow
             }
         }
     }
-    throw "等待 $($Details.Name) 游戏窗口超时。请检查 DMM 是否已登录、游戏是否在更新，以及快捷方式能否直接启动游戏。"
+    $Source = if ($WaitOnly) { 'UU 的「启动游戏」' } else { 'DMM 快捷方式' }
+    throw "等待 $($Details.Name) 游戏窗口超时（窗口类匹配 $($Details.Class)，标题匹配 $($Details.Title)）。请检查 $Source 是否能打开游戏、DMM 是否已登录，以及游戏是否正在更新。"
 } catch {
     Write-DmmLog "DMM 前置任务失败：$($_.Exception.Message)"
     exit 1

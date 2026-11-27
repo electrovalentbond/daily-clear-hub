@@ -33,7 +33,7 @@ NIKKE 国际服使用开源 [NIKKEAutoScript（NKAS）](https://github.com/megum
 
 1. 导入 `gakumas:` 后面的 MaaGakumasu 目录。[Windows 发布包](https://github.com/SuperWaterGod/MaaGakumasu/releases/tag/v1.5.4)
 2. **安卓日服**选「模拟器」和「官服」，使用插件汉化时改选「插件版汉化」。绑定已登录的实例，游戏包名填 `com.bandainamcoent.idolmaster_gakuen`。上游主要在 MuMu 12 测试，推荐 `1280×720`、`240 DPI`。将「启动游戏」放在队列前面，处理登录后的弹窗。[适配说明](https://github.com/SuperWaterGod/MaaGakumasu/blob/v1.5.4/README.md#L74-L89) · [安卓启动节点](https://github.com/SuperWaterGod/MaaGakumasu/blob/v1.5.4/assets/resource/base/pipeline/StartUp.json#L15-L50)
-3. **DMM 日服**选「PC」和「DMM」，以管理员权限打开 AUTO-MAS。「PC 游戏启动方式」选「由脚本自身控制游戏」，新版也可能显示「使用其他方式启停游戏」。按下文启用「启动 DMM 游戏」前置任务，再把 MaaGakumasu 自带的「启动游戏」放在普通任务的第一项，进入主页并处理登录后的弹窗。使用插件汉化时选「DMM插件汉化版」。[DMM 启动节点](https://github.com/SuperWaterGod/MaaGakumasu/blob/v1.5.4/assets/resource/DMM/pipeline/StartUp.json) · [进入主页流程](https://github.com/SuperWaterGod/MaaGakumasu/blob/v1.5.4/assets/resource/base/pipeline/StartUp.json)
+3. **DMM 日服**选「PC」和「DMM」，以管理员权限打开 AUTO-MAS。「PC 游戏启动方式」选「由脚本自身控制游戏」，新版也可能显示「使用其他方式启停游戏」。配置 DMM 快捷方式或 UU 加速后启动。把 MaaGakumasu 自带的「启动游戏」放在普通任务的第一项，进入主页并处理登录后的弹窗。使用插件汉化时选「DMM插件汉化版」。[快捷方式配置](#从-auto-mas-启动-dmm-游戏) · [UU 启动配置](#学园偶像大师和-dot-abyss) · [进入主页流程](https://github.com/SuperWaterGod/MaaGakumasu/blob/v1.5.4/assets/resource/base/pipeline/StartUp.json)
 4. 日常可以先加「收取活动费」「领取奖励」，再按需加「安排工作」「社团活动」「每日挑战」和「每周免费初星包」。使用上游「一键日常」预设时，留意其中的好友扭蛋和金币兑换选项。[一键日常预设](https://github.com/SuperWaterGod/MaaGakumasu/blob/v1.5.4/assets/tasks/preset.json#L1-L76)
 
 ## Dot Abyss
@@ -48,10 +48,12 @@ NIKKE 国际服使用开源 [NIKKEAutoScript（NKAS）](https://github.com/megum
    finally { Pop-Location }
    ```
 
-2. 导入 `dotabyss AUTO-MAS project:` 对应的适配器目录。控制器选「DMM 游戏窗口」，资源选「日文 DMM 客户端」。「PC 游戏启动方式」选「由脚本自身控制游戏」，按下文启用「启动 DMM 游戏」前置任务。在「基本信息」打开「跟随来源目录」，更新 Hub 并重跑安装脚本后点「立即同步」。
+2. 导入 `dotabyss AUTO-MAS project:` 对应的适配器目录。控制器选「DMM 游戏窗口」，资源选「日文 DMM 客户端」。「PC 游戏启动方式」选「由脚本自身控制游戏」，并配置 DMM 快捷方式或 UU 加速后启动。在「基本信息」打开「跟随来源目录」，更新 Hub 并重跑安装脚本后点「立即同步」。[快捷方式配置](#从-auto-mas-启动-dmm-游戏) · [UU 启动配置](#学园偶像大师和-dot-abyss)
 3. 先单独运行「领取礼物」或「领取任务奖励」，也可以应用「基础领奖」预设。势力任务、迎击战和探索队任务依赖于模型识别当前画面，先分别验证再放进定时队列。「领取挂机奖励」可能确认装备自动分解，按游戏中已有的分解设置执行。[上游日常任务定义](https://github.com/Azure-Sora/MaaDotAbyss/blob/v0.2.0/tasks/daily.yaml)
 
 ## 从 AUTO-MAS 启动 DMM 游戏
+
+以下步骤使用 DMM 官方快捷方式。加速和启动也可以交给同一个 UU 前置任务。[UU 启动配置](#学园偶像大师和-dot-abyss)
 
 1. 登录 DMM GAMES PLAYER，在「マイゲーム」找到对应的已安装游戏，点卡片的 **「︙ → ショートカット作成」**。用生成的桌面快捷方式试开一次，确认能打开游戏本体。只打开游戏详情页时，在 DMM 更新并重新创建快捷方式。[DMM 快捷方式说明](https://support.dmm.com/dlsoft/article/47380) · [旧快捷方式的处理](https://support.dmm.com/games/article/48363)
 2. 已有托管在 Windows 的仓库目录运行以下命令。已使用 UU 的托管给安装命令加上 `-WithUu`。有自定义 `-ToolsRoot` 时沿用原值。
@@ -62,7 +64,7 @@ NIKKE 国际服使用开源 [NIKKEAutoScript（NKAS）](https://github.com/megum
    ```
 
 3. 在当前托管的「基本信息」开启「跟随来源目录」，点「立即同步」。进入账号的「任务队列 → 添加任务」，添加并勾选 **「启动 DMM 游戏」**。AUTO-MAS 会尝试在桌面找到游戏的官方快捷方式，可以先留空「DMM 游戏快捷方式完整路径」。如果找不到或桌面有多个副本，填写该快捷方式的完整 `.lnk` 或 `.url` 路径。
-4. 含 UU 托管在前置任务区按 **「切换网易 UU 加速」→「启动 DMM 游戏」** 排序。学园偶像大师的普通任务先执行「启动游戏」。配置好后，可关掉游戏本体再试跑一次。AUTO-MAS 会等待对应游戏窗口出现，已打开的游戏窗口可直接复用。保持桌面解锁。DMM 重新登录、需要确认的更新、首次引导等提示应在官方客户端处理后重试。[AUTO-MAS 前置任务执行顺序](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/tools/embedded/runner_task.py#L873-L889)
+4. 如果同时使用 UU 加速和 DMM 快捷方式，保持「UU 加速后启动 DMM 游戏」关闭，在前置任务区按 **「切换网易 UU 加速」→「启动 DMM 游戏」** 排序。学园偶像大师的普通任务先执行「启动游戏」。配置好后，可关掉游戏本体再试跑一次。AUTO-MAS 会等待对应游戏窗口出现，已打开的游戏窗口可直接复用。保持桌面解锁。DMM 重新登录、需要确认的更新、首次引导等提示应在官方客户端处理后重试。[AUTO-MAS 前置任务执行顺序](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/tools/embedded/runner_task.py#L873-L889)
 
 ## 可选的 UU 加速
 
@@ -81,11 +83,21 @@ git pull --ff-only
 
 ### 学园偶像大师和 Dot Abyss
 
-1. 在 AUTO-MAS 新建「MFW 脚本」，导入输出中 `UU AUTO-MAS project:` 后面的目录。按上文选择控制器和资源、添加账号，再把这份托管放进现有队列。如果这款游戏已有普通托管，从队列里把该项换成含 UU 的托管即可。
-2. 打开该账号的「任务队列」。先添加需要的日常或应用预设，再点「添加任务」，搜索并勾选「切换网易 UU 加速」。填写 UU 中的游戏全名。要强制核对区服时，填写 UU 显示的区服文字。UU 已打开时可留空程序路径；需要由脚本打开，且默认安装位置未找到时，再填 `uu.exe` 或 `uu_launcher.exe` 的完整路径。若还有别的启动前任务，把 UU 放在最前面。[AUTO-MAS 前置任务的执行顺序](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/tools/embedded/runner_task.py#L873-L889)
-3. 解锁桌面并试跑该托管。脚本会打开或接管 UU，必要时停止旧加速，确认目标游戏显示加速状态后再继续启动 DMM 游戏。无法确认时，本次运行在前置任务处失败，可到历史记录查看原因。前置任务执行时保持 UU 窗口可见。
+仅安装或更新这两款游戏的含 UU 托管时，在 Windows 的仓库目录运行以下命令。自定义过 `-ToolsRoot` 时沿用原值。
 
-取消勾选「切换网易 UU 加速」即可跳过这一步。含 UU 的托管用本地项目，更新时重跑包含 `-WithUu` 的安装命令，然后在托管「基本信息」开启「跟随来源目录」并点「立即同步」。
+```powershell
+git pull --ff-only
+& .\scripts\setup-windows.ps1 -Games gakumas,dotabyss -WithUu
+```
+
+1. 已有含 UU 托管时，在「基本信息」开启「跟随来源目录」，点「立即同步」。首次配置时，新建「MFW 脚本」并导入输出中 `UU AUTO-MAS project:` 后面的目录。按上文选择控制器和资源、添加账号，再把这份托管放进现有队列。如果这款游戏已有普通托管，从队列里把该项换成含 UU 的托管即可。
+2. 打开该账号的「任务队列」，先添加日常或应用预设，再添加并勾选「切换网易 UU 加速」。填写 UU 中的游戏全名。要核对区服时，填写 UU 显示的区服文字。UU 已打开时可留空程序路径。默认安装位置找不到时，再填 `uu.exe` 或 `uu_launcher.exe` 的完整路径。把 UU 放在前置任务区的第一项。[AUTO-MAS 前置任务的执行顺序](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/tools/embedded/runner_task.py#L873-L889)
+3. **DMM 客户端**可以在「切换网易 UU 加速」的设置中开启默认关闭的 **「UU 加速后启动 DMM 游戏」**。同时取消勾选单独的「启动 DMM 游戏」前置任务。脚本会确认目标游戏正在加速，点击 UU 的「启动游戏」，等待对应游戏窗口出现，再交给 AUTO-MAS。学园偶像大师仍把 MaaGakumasu 自带的「启动游戏」留在普通任务的第一项。想通过 DMM 快捷方式启动时，关闭此选项并保留单独的「启动 DMM 游戏」前置任务。[UU 加速和游戏启动说明](https://uu.baike.netease.com/zhinan/53.html)
+4. 解锁桌面，保持 UU 窗口可见，关闭游戏本体后试跑一次。首次登录或遇到 DMM 更新提示时，在官方客户端处理后重试。
+
+在历史记录中先看「开始应用运行前设置」是否列出「切换网易 UU 加速」。冷启动时，日志中的 `已点击 UU 的「启动游戏」` 表示点击已执行，后续的 DMM 日志会报告是否找到游戏窗口。如果缺少点击日志，核对是否已同步含 UU 托管、勾选了前置任务，并为 DMM 客户端开启了「UU 加速后启动 DMM 游戏」。若报告 `未找到匹配 MaaFW Win32 controller 的窗口`，AUTO-MAS 在当前控制器的规则下没有找到游戏窗口。核对前面的启动日志，以及学园偶像大师的「PC / DMM」或 Dot Abyss 的「DMM 游戏窗口 / 日文 DMM 客户端」选择。[AUTO-MAS 窗口查找逻辑](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/tools/embedded/runner_task.py#L1987-L2009)
+
+取消勾选「切换网易 UU 加速」即可跳过加速。DMM 客户端仍可使用单独的「启动 DMM 游戏」前置任务。
 
 ### UU 停在首页或提示找不到游戏
 

@@ -2,11 +2,14 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from scripts.dmm_project import OPTION_NAME as DMM_OPTION
 from scripts.dmm_project import TASK_NAME as DMM_TASK
 from scripts.dmm_project import prepare as prepare_dmm
-from scripts.uu_project import OPTION_NAME, PROJECTS, TASK_NAME, boost_arguments, prepare
+from scripts.uu_project import (
+    LAUNCH_OPTION, OPTION_NAME, PROJECTS, TASK_NAME, boost_arguments, prepare, run_pretask,
+)
 
 
 class UuProjectTest(unittest.TestCase):
@@ -40,7 +43,8 @@ class UuProjectTest(unittest.TestCase):
                     pretask = variant["pretask"][0]
                     self.assertEqual(pretask["name"], TASK_NAME)
                     self.assertEqual(pretask["exec"], "powershell")
-                    self.assertEqual(pretask["option"], [OPTION_NAME])
+                    self.assertEqual(pretask["option"], [OPTION_NAME, LAUNCH_OPTION])
+                    self.assertEqual(pretask["args"][-2:], ["-DmmGame", game])
                     self.assertNotIn("default_check", pretask)
                     self.assertEqual(json.loads(source.read_text(encoding="utf-8-sig")), interface)
 
@@ -50,6 +54,37 @@ class UuProjectTest(unittest.TestCase):
         self.assertEqual(boost_arguments(json.dumps(options)), ["--game=NIKKE（国际服）", "--region=日服", f"--exe={exe}"])
         with self.assertRaisesRegex(ValueError, "游戏全名"):
             boost_arguments(json.dumps({OPTION_NAME: {"game": " "}}))
+
+    def test_launches_only_when_the_switch_is_enabled(self):
+        for case in ("Yes", "No", True):
+            with self.subTest(case=case):
+                options = {OPTION_NAME: {"game": "学园偶像大师"}, LAUNCH_OPTION: case}
+                expected = ["--game=学园偶像大师"]
+                if case == "Yes":
+                    expected.append("--launch-game")
+                self.assertEqual(boost_arguments(json.dumps(options)), expected)
+
+    def test_waits_for_dmm_window_after_uu_requests_launch(self):
+        args = ["--game=学园偶像大师", "--launch-game"]
+        project = Path("Project With Spaces")
+        with patch("scripts.uu_project.boost", return_value=0) as boost, patch(
+            "scripts.uu_project.subprocess.run"
+        ) as run:
+            run.return_value.returncode = 1
+            self.assertEqual(run_pretask(args, "gakumas", project), 1)
+        boost.assert_called_once_with(args)
+        run.assert_called_once_with([
+            "powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+            "-File", str(project / "daily-clear-dmm.ps1"), "-Game", "gakumas", "-WaitOnly",
+        ], check=False)
+
+    def test_skips_window_wait_without_launch_or_on_uu_failure(self):
+        for opts, code in ((["--game=game"], 0), (["--game=game", "--launch-game"], 1)):
+            with self.subTest(opts=opts), patch("scripts.uu_project.boost", return_value=code), patch(
+                "scripts.uu_project.subprocess.run"
+            ) as run:
+                self.assertEqual(run_pretask(opts, "dotabyss", Path("project")), code)
+                run.assert_not_called()
 
     def test_dmm_launch_is_available_without_uu_and_runs_after_uu_in_the_copy(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -78,4 +113,6 @@ class UuProjectTest(unittest.TestCase):
                     prepare(game, source, target, parent / "python.exe", parent / "uu_project.py")
                     variant = json.loads(target.read_bytes())
                     self.assertEqual([task["name"] for task in variant["pretask"]], [TASK_NAME, DMM_TASK, "Original"])
+                    self.assertEqual(variant["option"][LAUNCH_OPTION]["controller"], [controller])
+                    self.assertEqual(variant["option"][LAUNCH_OPTION]["default_case"], "No")
                     self.assertEqual(source.read_bytes(), installed)
