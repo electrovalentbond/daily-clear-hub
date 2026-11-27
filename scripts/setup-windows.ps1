@@ -354,12 +354,21 @@ function Install-UuProject([string]$Game, [string]$Interface, [string]$Folder) {
     }
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uu-before.ps1') `
         -Destination (Join-Path $Target 'daily-clear-uu.ps1') -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'dmm-before.ps1') `
+        -Destination (Join-Path $Target 'daily-clear-dmm.ps1') -Force
     Invoke-CheckedNative $HubPython @(
         '-X', 'utf8', (Join-Path $PSScriptRoot 'uu_project.py'), 'prepare', $Game, $Interface,
         (Join-Path $Target 'interface.json'), $UuPython, (Join-Path $UuRoot 'uu_project.py')
     )
     [IO.File]::WriteAllText($Marker, $Fingerprint)
     Write-Host ("${Game} UU AUTO-MAS project: " + $Target)
+}
+
+function Add-DmmLaunch([string]$Game, [string]$Interface) {
+    $Project = Split-Path -Parent $Interface
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'dmm-before.ps1') `
+        -Destination (Join-Path $Project 'daily-clear-dmm.ps1') -Force
+    Invoke-CheckedNative $HubPython @('-X', 'utf8', (Join-Path $PSScriptRoot 'dmm_project.py'), $Game, $Interface)
 }
 
 function Prepare-DotAbyss {
@@ -378,11 +387,13 @@ function Prepare-DotAbyss {
     }
     $AdapterConfig = @{ hub_root = $HubRoot; dotabyss_root = $Project } | ConvertTo-Json
     [IO.File]::WriteAllText((Join-Path $Adapter 'local.json'), $AdapterConfig, [Text.UTF8Encoding]::new($false))
+    $Interface = Join-Path $Adapter 'interface.json'
+    Add-DmmLaunch 'dotabyss' $Interface
 
     Write-Host "dotabyss project: $Project"
     Write-Host "dotabyss Python: $Python"
     Write-Host "dotabyss AUTO-MAS project: $Adapter"
-    if ($WithUu) { Install-UuProject 'dotabyss' (Join-Path $Adapter 'interface.json') 'dotabyss-automas' }
+    if ($WithUu) { Install-UuProject 'dotabyss' $Interface 'dotabyss-automas' }
 }
 
 [IO.Directory]::CreateDirectory($ToolsRoot) | Out-Null
@@ -413,6 +424,7 @@ try {
                 if ($Game -eq 'bhxy2') {
                     Invoke-CheckedNative $HubPython @((Join-Path $PSScriptRoot 'patch_maabh2.py'), $Entry)
                 }
+                if ($Game -eq 'gakumas') { Add-DmmLaunch $Game $Entry }
                 Write-Host ("${Game}: " + (Split-Path -Parent $Entry))
                 if ($WithUu -and $Game -in $UuGames) { Install-UuProject $Game $Entry $Releases[$Game].Folder }
             }

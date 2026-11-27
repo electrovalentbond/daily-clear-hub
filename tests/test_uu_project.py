@@ -3,6 +3,9 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from scripts.dmm_project import OPTION_NAME as DMM_OPTION
+from scripts.dmm_project import TASK_NAME as DMM_TASK
+from scripts.dmm_project import prepare as prepare_dmm
 from scripts.uu_project import OPTION_NAME, PROJECTS, TASK_NAME, boost_arguments, prepare
 
 
@@ -47,3 +50,32 @@ class UuProjectTest(unittest.TestCase):
         self.assertEqual(boost_arguments(json.dumps(options)), ["--game=NIKKE（国际服）", "--region=日服", f"--exe={exe}"])
         with self.assertRaisesRegex(ValueError, "游戏全名"):
             boost_arguments(json.dumps({OPTION_NAME: {"game": " "}}))
+
+    def test_dmm_launch_is_available_without_uu_and_runs_after_uu_in_the_copy(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            parent = Path(tmp)
+            for game, controller in (("gakumas", "PC"), ("dotabyss", "Win32Front")):
+                with self.subTest(game=game):
+                    source = parent / f"{game}.json"
+                    upstream = {"name": "Upstream", "pretask": {"name": "Original"}, "task": [{"name": "Daily"}]}
+                    source.write_text(json.dumps(upstream), encoding="utf-8-sig")
+
+                    self.assertTrue(prepare_dmm(game, source))
+                    installed = source.read_bytes()
+                    self.assertFalse(prepare_dmm(game, source))
+                    self.assertEqual(source.read_bytes(), installed)
+                    regular = json.loads(installed)
+                    launch, original = regular["pretask"]
+                    self.assertEqual(original, upstream["pretask"])
+                    self.assertEqual(regular["task"], upstream["task"])
+                    self.assertEqual(launch["name"], DMM_TASK)
+                    self.assertEqual(launch["controller"], [controller])
+                    self.assertEqual(launch["args"][-3:], ["{PROJECT_DIR}/daily-clear-dmm.ps1", "-Game", game])
+                    self.assertEqual(launch["option"], [DMM_OPTION])
+                    self.assertEqual(regular["option"][DMM_OPTION]["inputs"][0]["default"], "")
+
+                    target = parent / "interface.json"
+                    prepare(game, source, target, parent / "python.exe", parent / "uu_project.py")
+                    variant = json.loads(target.read_bytes())
+                    self.assertEqual([task["name"] for task in variant["pretask"]], [TASK_NAME, DMM_TASK, "Original"])
+                    self.assertEqual(source.read_bytes(), installed)
