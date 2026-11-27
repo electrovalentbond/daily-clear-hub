@@ -1,9 +1,11 @@
 """Run the due tasks of one NKAS v1.2.0 profile using its native scheduler."""
 
+import logging
 import os
 import re
 import signal
 import sys
+import threading
 import traceback
 from collections import Counter
 from datetime import datetime
@@ -11,6 +13,13 @@ from pathlib import Path
 
 
 MAX_ATTEMPTS_PER_TASK = 3
+STATUS_PATH_ENV = "DAILY_CLEAR_HUB_NKAS_STATUS_PATH"
+_STATUS_LOCK = threading.Lock()
+_SENSITIVE_FIELDS = re.compile(
+    r"""\b(?:authorization|account|username|[\w-]*(?:password|passwd|token|cookie|secret|api[_-]?key))\b["']?\s*[:=]""",
+    re.IGNORECASE,
+)
+_EMAIL = re.compile(r"[\w.+-]+@[\w.-]+\.[A-Za-z]{2,}")
 
 
 class RunError(Exception):
@@ -23,12 +32,30 @@ class QueueDrained(Exception):
 
 def status(state, detail=""):
     message = f"DCH_NKAS_STATUS {state} {detail}".rstrip()
-    path = os.environ.get("DAILY_CLEAR_HUB_NKAS_STATUS_PATH")
+    path = os.environ.get(STATUS_PATH_ENV)
     if path:
-        with Path(path).open("a", encoding="utf-8") as stream:
+        with _STATUS_LOCK, Path(path).open("a", encoding="utf-8") as stream:
             stream.write(message + "\n")
     else:
         print(message, flush=True)
+
+
+class LiveLogHandler(logging.Handler):
+    def emit(self, record):
+        try:
+            if record.exc_info and record.exc_info[0]:
+                message = f"{record.exc_info[0].__name__}（详情见 NKAS 子进程日志）"
+            else:
+                # Keep tracebacks and records with authentication data in NKAS's local logs.
+                message = record.getMessage()
+                if _SENSITIVE_FIELDS.search(message):
+                    return
+                message = _EMAIL.sub("[邮箱已隐藏]", message)
+            message = " ".join(message.split())[:1600]
+            if message:
+                status("log", f"[{record.levelname}] {message}")
+        except Exception:
+            self.handleError(record)
 
 
 def validate_profile(root, profile):
@@ -52,6 +79,20 @@ def run_profile(profile):
     sys.path.insert(0, str(root))
     sys.argv[0] = str(root / "main.py")
 
+    if not os.environ.get(STATUS_PATH_ENV):
+        return run_scheduler(profile)
+    from module.logger import logger
+
+    relay = LiveLogHandler(level=logging.INFO)
+    logger.addHandler(relay)
+    try:
+        return run_scheduler(profile)
+    finally:
+        logger.removeHandler(relay)
+        relay.close()
+
+
+def run_scheduler(profile):
     from main import NikkeAutoScript
     from module.base.resource import release_resources
     from module.config.serial_state import read_serial_config

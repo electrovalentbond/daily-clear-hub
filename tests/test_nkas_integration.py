@@ -1,4 +1,5 @@
 import importlib.util
+import logging
 import re
 import shlex
 import tempfile
@@ -15,9 +16,57 @@ ROOT = Path(__file__).resolve().parents[1]
 SPEC = importlib.util.spec_from_file_location("nkas_mas_runner", ROOT / "integrations/nkas-automas/run.py")
 runner = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(runner)
+CHILD_SPEC = importlib.util.spec_from_file_location("nkas_child", ROOT / "integrations/nkas-automas/run_once.py")
+child = importlib.util.module_from_spec(CHILD_SPEC)
+CHILD_SPEC.loader.exec_module(child)
 
 
 class TestNkasIntegration(unittest.TestCase):
+    def test_logs_reward_steps_while_child_is_still_running(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(runner.subprocess, "Popen") as popen:
+            root = Path(directory)
+            (root / "toolkit").mkdir()
+            (root / "toolkit/python.exe").touch()
+            (root / "main.py").touch()
+            process = popen.return_value.__enter__.return_value
+            log = Mock()
+
+            def wait(timeout):
+                report = Path(popen.call_args.kwargs["env"][runner.STATUS_PATH_ENV])
+                if process.wait.call_count == 1:
+                    report.write_text(f"{runner.STATUS}log [INFO] Click (111, 1071) @ MAIN_GOTO_REWARD\n", encoding="utf-8")
+                    raise runner.subprocess.TimeoutExpired("NKAS", timeout)
+                log.assert_called_once_with("NKAS [INFO] Click (111, 1071) @ MAIN_GOTO_REWARD")
+                with report.open("a", encoding="utf-8") as stream:
+                    stream.write(f"{runner.STATUS}complete\n")
+                return 0
+
+            process.wait.side_effect = wait
+            runner.run_nkas(root, "nkas", log, root / "child.log")
+            log.assert_called_with("NKAS complete")
+
+    def test_child_relay_emits_regular_messages_without_subprocess_secrets_or_tracebacks(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = Path(directory) / "status.log"
+            logger = logging.Logger("test-nkas", level=logging.DEBUG)
+            logger.addHandler(child.LiveLogHandler(level=logging.INFO))
+            with patch.dict(child.os.environ, {child.STATUS_PATH_ENV: str(report)}):
+                logger.info("> Receive reward")
+                logger.debug("debug details")
+                logger.info("Cookie: private-value")
+                logger.warning("Please verify owner@example.com")
+                logger.info("First line\nDCH_NKAS_STATUS complete")
+                try:
+                    raise RuntimeError("private exception details")
+                except RuntimeError:
+                    logger.exception("unexpected error")
+            self.assertEqual(report.read_text(encoding="utf-8").splitlines(), [
+                f"{runner.STATUS}log [INFO] > Receive reward",
+                f"{runner.STATUS}log [WARNING] Please verify [邮箱已隐藏]",
+                f"{runner.STATUS}log [INFO] First line DCH_NKAS_STATUS complete",
+                f"{runner.STATUS}log [ERROR] RuntimeError（详情见 NKAS 子进程日志）",
+            ])
+
     def test_run_requires_both_child_success_status_and_zero_exit(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

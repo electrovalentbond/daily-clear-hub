@@ -31,6 +31,14 @@ NIKKE 国际服使用开源 [NIKKEAutoScript（NKAS）](https://github.com/megum
 
 若 UU 已加速但 NKAS 报 `Launcher path must be specified`，进入该账号的「通用配置 → nkas → PC 客户端」，在「启动器路径」选中实际安装的 `nikke_launcher.exe`，然后保存。已选择「国际」时仍需指定启动器路径。AUTO-MAS 的失败摘要会显示启动检查的结果。适配器的 `nikke-automas\logs` 下，`run-*.log` 是运行记录，同一时间的 `child-*.log` 是 NKAS 子进程输出。用 Windows PowerShell 读取日志时带上 `-Encoding UTF8`。[NKAS 路径配置](https://github.com/megumiss/NIKKEAutoScript/wiki/Quick-Installation-Guide.zh-CN#4-选择游戏路径)
 
+运行时，在 AUTO-MAS「调度中心」打开当前运行面板的「日志」，点「保持最新」。这里会同步 NKAS 的任务阶段、识别到的控件点击和报错等 INFO 及以上消息。运行结束后，从「历史记录」打开本次日志。[AUTO-MAS 调度日志面板](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/frontend/src/views/scheduler/index.vue#L111-L123)
+
+如果鼠标移到了按钮但游戏没响应，先核对「鼠标控制方案」。NKAS v1.2.0 将 `pyautogui` 和 `postmessage` 都标为「已被屏蔽」。`PrintWindow` 是截图方式，切换它只影响画面采集。[NKAS v1.2.0 设置说明](https://github.com/megumiss/NIKKEAutoScript/blob/v1.2.0/module/config/i18n/zh-CN.json#L568-L579) · [上游点击无响应报告](https://github.com/megumiss/NIKKEAutoScript/issues/295)
+
+继续使用 PC 客户端时，可以在 NKAS 自带的「常用工具 → 虚拟鼠标驱动」确认驱动已安装。随后退出独立 NKAS，在 AUTO-MAS 的「通用配置 → nkas → PC 客户端 → PC 端设置」选择 **`driver（驱动级前台模式）`** 和 **`cursor（光标直定位）`**，先点网页「保存」，再点 AUTO-MAS「保存配置」。驱动级模式是上游的测试功能。保持游戏窗口在前台，先单独试跑「收获」。也可以使用 NKAS 的安卓模拟器配置。[NKAS 驱动配置](https://github.com/megumiss/NIKKEAutoScript/wiki/Quick-Installation-Guide.zh-CN#2-安装虚拟鼠标驱动) · [模拟器配置](https://github.com/megumiss/NIKKEAutoScript/wiki/Usage-Guide-Emulator.zh-CN)
+
+日志里的 `Click ... @ MAIN_GOTO_REWARD` 表示尝试打开前哨收益，`Click ... @ RECEIVE` 表示尝试点击领取。用后续画面或 `Defence Reward have been received` 核对结果。如果游戏仍无响应，保留最后几行点击日志和当时的画面。[NKAS 收获流程](https://github.com/megumiss/NIKKEAutoScript/blob/v1.2.0/module/reward/reward.py#L16-L56)
+
 ## 学园偶像大师
 
 1. 导入 `gakumas:` 后面的 MaaGakumasu 目录。[Windows 发布包](https://github.com/SuperWaterGod/MaaGakumasu/releases/tag/v1.5.4)

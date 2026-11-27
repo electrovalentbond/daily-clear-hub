@@ -77,7 +77,7 @@ def run_nkas(upstream: Path, profile: str, log, diagnostic_log: Path) -> None:
         with subprocess.Popen(
             command, cwd=upstream, env=env, stdin=subprocess.DEVNULL,
             stdout=output, stderr=subprocess.STDOUT,
-        ) as process, report.open(encoding="utf-8") as stream:
+        ) as process, report.open(encoding="utf-8", errors="replace") as stream:
             while True:
                 try:
                     code = process.wait(timeout=1)
@@ -92,6 +92,9 @@ def run_nkas(upstream: Path, profile: str, log, diagnostic_log: Path) -> None:
                     if line.startswith(STATUS):
                         message = line[len(STATUS):].strip()
                         state, _, detail = message.partition(" ")
+                        if state == "log":
+                            log(f"NKAS {detail}")
+                            continue
                         if state in SUCCESS_STATES or state in {"failed", "stopped"}:
                             terminal.append(state)
                         if state == "failed" and detail:
