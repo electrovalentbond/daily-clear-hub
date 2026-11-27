@@ -114,5 +114,5 @@ class UuProjectTest(unittest.TestCase):
                     variant = json.loads(target.read_bytes())
                     self.assertEqual([task["name"] for task in variant["pretask"]], [TASK_NAME, DMM_TASK, "Original"])
                     self.assertEqual(variant["option"][LAUNCH_OPTION]["controller"], [controller])
-                    self.assertEqual(variant["option"][LAUNCH_OPTION]["default_case"], "No")
+                    self.assertEqual(variant["option"][LAUNCH_OPTION]["default_case"], "Yes")
                     self.assertEqual(source.read_bytes(), installed)

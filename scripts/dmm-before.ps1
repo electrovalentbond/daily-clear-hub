@@ -137,6 +137,26 @@ public static class DailyClearHubDmmWindow
     [DllImport("user32.dll")]
     private static extern bool ShowWindowAsync(IntPtr window, int command);
 
+    [DllImport("kernel32.dll")]
+    private static extern uint GetCurrentThreadId();
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetThreadDesktop(uint threadId);
+
+    [DllImport("user32.dll", EntryPoint = "GetUserObjectInformationW", ExactSpelling = true)]
+    private static extern bool GetUserObjectInformation(
+        IntPtr handle, int index, out int value, uint size, out uint needed);
+
+    public static bool CanUseInputDesktop()
+    {
+        IntPtr desktop = GetThreadDesktop(GetCurrentThreadId());
+        int receivingInput;
+        uint needed;
+        // UOI_IO reports whether this script's own desktop receives input.
+        return GetUserObjectInformation(desktop, 6, out receivingInput, sizeof(int), out needed)
+            && receivingInput != 0;
+    }
+
     public static IntPtr Find(string classPattern, string titlePattern)
     {
         IntPtr match = IntPtr.Zero;
@@ -165,7 +185,7 @@ public static class DailyClearHubDmmWindow
 '@
 
     $Window = [DailyClearHubDmmWindow]::Find($Details.Class, $Details.Title)
-    if ($Window -ne [IntPtr]::Zero) {
+    if ($Window -ne [IntPtr]::Zero -and [DailyClearHubDmmWindow]::CanUseInputDesktop()) {
         [DailyClearHubDmmWindow]::Restore($Window)
         Write-DmmLog "DMM：沿用已打开的 $($Details.Name) 游戏窗口。"
         exit 0
@@ -173,24 +193,40 @@ public static class DailyClearHubDmmWindow
 
     if ($WaitOnly) {
         Write-DmmLog "DMM：UU 已请求启动 $($Details.Name)，等待游戏窗口。"
-    } else {
+    } elseif ($Window -eq [IntPtr]::Zero) {
         $Uri = Resolve-DmmLaunchUri $Details $ConfiguredShortcut
         Write-DmmLog "DMM：通过官方启动器请求启动 $($Details.Name)，等待游戏窗口。"
         Start-Process -FilePath $Uri
     }
 
     $Wait = [Diagnostics.Stopwatch]::StartNew()
+    $WaitingForDesktop = $false
     while ($Wait.Elapsed.TotalSeconds -lt 120) {
         Start-Sleep -Seconds 1
+        if (-not [DailyClearHubDmmWindow]::CanUseInputDesktop()) {
+            if (-not $WaitingForDesktop) {
+                Write-DmmLog 'DMM：等待 Windows 返回可操作桌面。如果出现用户帐户控制提示，请核对应用和发布者后手动选择「是」。'
+                $WaitingForDesktop = $true
+            }
+            continue
+        }
+        if ($WaitingForDesktop) {
+            Write-DmmLog 'DMM：Windows 桌面已恢复，继续查找游戏窗口。'
+            $WaitingForDesktop = $false
+        }
         $Window = [DailyClearHubDmmWindow]::Find($Details.Class, $Details.Title)
         if ($Window -ne [IntPtr]::Zero) {
             [DailyClearHubDmmWindow]::Restore($Window)
             Start-Sleep -Seconds 2
-            if ([DailyClearHubDmmWindow]::Find($Details.Class, $Details.Title) -ne [IntPtr]::Zero) {
+            if ([DailyClearHubDmmWindow]::CanUseInputDesktop() -and
+                [DailyClearHubDmmWindow]::Find($Details.Class, $Details.Title) -ne [IntPtr]::Zero) {
                 Write-DmmLog "DMM：已找到 $($Details.Name) 游戏窗口，交给 AUTO-MAS。"
                 exit 0
             }
         }
+    }
+    if ($WaitingForDesktop) {
+        throw '等待 Windows 可操作桌面超时。请解锁桌面，或在核对应用和发布者后确认用户帐户控制提示，再重试。'
     }
     $Source = if ($WaitOnly) { 'UU 的「启动游戏」' } else { 'DMM 快捷方式' }
     throw "等待 $($Details.Name) 游戏窗口超时（窗口类匹配 $($Details.Class)，标题匹配 $($Details.Title)）。请检查 $Source 是否能打开游戏、DMM 是否已登录，以及游戏是否正在更新。"

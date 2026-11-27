@@ -92,10 +92,12 @@ git pull --ff-only
 
 1. 已有含 UU 托管时，在「基本信息」开启「跟随来源目录」，点「立即同步」。首次配置时，新建「MFW 脚本」并导入输出中 `UU AUTO-MAS project:` 后面的目录。按上文选择控制器和资源、添加账号，再把这份托管放进现有队列。如果这款游戏已有普通托管，从队列里把该项换成含 UU 的托管即可。
 2. 打开该账号的「任务队列」，先添加日常或应用预设，再添加并勾选「切换网易 UU 加速」。填写 UU 中的游戏全名。要核对区服时，填写 UU 显示的区服文字。UU 已打开时可留空程序路径。默认安装位置找不到时，再填 `uu.exe` 或 `uu_launcher.exe` 的完整路径。把 UU 放在前置任务区的第一项。[AUTO-MAS 前置任务的执行顺序](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/tools/embedded/runner_task.py#L873-L889)
-3. **DMM 客户端**可以在「切换网易 UU 加速」的设置中开启默认关闭的 **「UU 加速后启动 DMM 游戏」**。同时取消勾选单独的「启动 DMM 游戏」前置任务。脚本会确认目标游戏正在加速，点击 UU 的「启动游戏」，等待对应游戏窗口出现，再交给 AUTO-MAS。学园偶像大师仍把 MaaGakumasu 自带的「启动游戏」留在普通任务的第一项。想通过 DMM 快捷方式启动时，关闭此选项并保留单独的「启动 DMM 游戏」前置任务。[UU 加速和游戏启动说明](https://uu.baike.netease.com/zhinan/53.html)
-4. 解锁桌面，保持 UU 窗口可见，关闭游戏本体后试跑一次。首次登录或遇到 DMM 更新提示时，在官方客户端处理后重试。
+3. **DMM 客户端**在「切换网易 UU 加速」里把 **「UU 加速后启动 DMM 游戏」** 选为「是」。新版默认选「是」，此前保存过「否」的托管需要改一次。取消勾选单独的「启动 DMM 游戏」前置任务。脚本会确认目标游戏正在加速，点击 UU 的「启动游戏」，等待对应游戏窗口出现，再交给 AUTO-MAS。学园偶像大师仍把 MaaGakumasu 自带的「启动游戏」留在普通任务的第一项。想通过 DMM 快捷方式启动时，把这个选项改为「否」，并保留单独的「启动 DMM 游戏」前置任务。[UU 加速和游戏启动说明](https://uu.baike.netease.com/zhinan/53.html)
+4. 解锁桌面，保持 UU 窗口可见，关闭游戏本体后试跑一次。首次登录或遇到 DMM 更新提示时，在官方客户端处理后重试。若 Windows 显示「用户帐户控制」，核对应用和发布者后手动选「是」。启动脚本会在两分钟等待期内继续查找游戏窗口。[微软 UAC 说明](https://learn.microsoft.com/en-us/windows/security/application-security/application-control/user-account-control/how-it-works)
 
-在历史记录中先看「开始应用运行前设置」是否列出「切换网易 UU 加速」。冷启动时，日志中的 `已点击 UU 的「启动游戏」` 表示点击已执行，后续的 DMM 日志会报告是否找到游戏窗口。如果缺少点击日志，核对是否已同步含 UU 托管、勾选了前置任务，并为 DMM 客户端开启了「UU 加速后启动 DMM 游戏」。若报告 `未找到匹配 MaaFW Win32 controller 的窗口`，AUTO-MAS 在当前控制器的规则下没有找到游戏窗口。核对前面的启动日志，以及学园偶像大师的「PC / DMM」或 Dot Abyss 的「DMM 游戏窗口 / 日文 DMM 客户端」选择。[AUTO-MAS 窗口查找逻辑](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/tools/embedded/runner_task.py#L1987-L2009)
+在历史记录中先看「开始应用运行前设置」是否列出「切换网易 UU 加速」。UU 日志会列出本次模式。若显示 `UU 本次模式：仅加速`，核对是否已同步含 UU 托管、启用了前置任务，并把「UU 加速后启动 DMM 游戏」选为「是」。日志中的 `已点击 UU 的「启动游戏」` 表示点击已执行，后续的 DMM 日志会报告是否找到游戏窗口。若报告 `未找到匹配 MaaFW Win32 controller 的窗口`，核对前面的启动日志，以及学园偶像大师的「PC / DMM」或 Dot Abyss 的「DMM 游戏窗口 / 日文 DMM 客户端」选择。[AUTO-MAS 窗口查找逻辑](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/tools/embedded/runner_task.py#L1987-L2009)
+
+切换游戏时，若 UU 弹出停止旧加速的确认框，日志会依次显示 `已请求停止 UU 的当前加速` 和 `已确认停止 UU 的旧加速`。重试时仍显示的停止确认框也会检查后处理。
 
 取消勾选「切换网易 UU 加速」即可跳过加速。DMM 客户端仍可使用单独的「启动 DMM 游戏」前置任务。
 

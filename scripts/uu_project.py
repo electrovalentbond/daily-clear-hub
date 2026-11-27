@@ -70,10 +70,10 @@ def prepare(game: str, source: Path, destination: Path, python: Path, runner: Pa
     options[LAUNCH_OPTION] = {
         "type": "switch",
         "label": "UU 加速后启动 DMM 游戏",
-        "description": "点击 UU 的「启动游戏」，等游戏窗口出现后再交给 AUTO-MAS。",
+        "description": "点击 UU 的「启动游戏」，等游戏窗口出现后再交给 AUTO-MAS。使用单独的 DMM 快捷方式前置任务时选「否」。",
         "controller": [CONTROLLERS[game]],
-        "default_case": "No",
-        "cases": [{"name": "Yes"}, {"name": "No"}],
+        "default_case": "Yes",
+        "cases": [{"name": "Yes", "label": "是"}, {"name": "No", "label": "否"}],
     }
     write_json(destination.with_name("daily-clear-uu.json"), {"python": str(python), "runner": str(runner)})
     write_json(destination, interface)
@@ -101,6 +101,8 @@ def run_pretask(options: list[str], game: str | None, project_dir: Path) -> int:
     launch = "--launch-game" in options
     if launch and not game:
         raise ValueError("缺少 DMM 游戏启动配置，请重跑带 -WithUu 的安装命令并同步托管")
+    mode = "加速后从 UU 启动 DMM 游戏" if launch else "仅加速"
+    print(f"UU 本次模式：{mode}", flush=True)
     result = boost(options)
     if result or not launch:
         return result

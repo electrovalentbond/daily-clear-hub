@@ -1,8 +1,9 @@
 import itertools
 import unittest
-from unittest.mock import patch
+from types import SimpleNamespace
+from unittest.mock import Mock, patch
 
-from scripts.uu_boost import BoostError, Label, Page, boost
+from scripts.uu_boost import BoostError, DesktopClient, Label, Page, boost
 
 
 def label(text, x, y, role="", enabled=None):
@@ -15,6 +16,8 @@ STOP = label("停止加速", 223, 347)
 START = label("立即加速", 223, 347)
 LAUNCH = label("启动游戏", 95, 347)
 CONFIRM = label("确定", 432, 456)
+CANCEL = label("取消", 568, 456)
+STOP_NOTICE = Label("重新加速，将断开正在加速游戏连接", (386, 352, 615, 371))
 NAVIGATION = (label("首页", 182, 50), label("游戏", 260, 50), label("云存档", 345, 50))
 HOME_CARD = Label("学园偶像大师", (92, 429, 207, 456))
 HOME_START = label("立即加速", 148, 375)
@@ -57,7 +60,10 @@ class UuBoostTests(unittest.TestCase):
             boost(client, "学园偶像大师", "学园偶像大师", region, 15, launch_game=launch_game)
 
     def test_launch_is_opt_in_and_clicks_once_on_verified_game_and_region(self):
-        target = detail("学园偶像大师", STOP, LAUNCH, label("游戏服：日服", 410, 330))
+        target = detail(
+            "学园偶像大师", STOP, LAUNCH, label("启动游戏", 95, 395),
+            label("游戏服：日服", 410, 330),
+        )
         client = TestClient(target, target)
         self.run_boost(client, region="日服")
         self.assertEqual(client.actions, [])
@@ -69,18 +75,26 @@ class UuBoostTests(unittest.TestCase):
         self.assertEqual(client.actions, [("click", LAUNCH)])
 
     def test_launch_requires_unambiguous_available_button_in_active_row(self):
-        for controls in (
-            (),
-            (LAUNCH, label("启动游戏", 155, 347)),
-            (LAUNCH, label("启动游戏", 95, 347, "Button", False)),
-            (label("启动游戏", 95, 395),),
+        for controls, reason in (
+            ((), "未识别到加速详情页上的「启动游戏」按钮"),
+            ((LAUNCH, label("启动游戏", 155, 347)), "加速详情页有多个「启动游戏」按钮"),
+            ((LAUNCH, label("启动游戏", 95, 347, "Button", False)), "「启动游戏」按钮不可用"),
+            ((label("启动游戏", 95, 395),), "未识别到加速详情页上的「启动游戏」按钮"),
         ):
             with self.subTest(controls=controls):
                 target = detail("学园偶像大师", STOP, *controls)
                 client = TestClient(*([target] * 15))
-                with self.assertRaisesRegex(BoostError, "已加速，未识别到唯一可用的「启动游戏」按钮"):
+                with self.assertRaisesRegex(BoostError, f"已加速，{reason}"):
                     self.run_boost(client, launch_game=True)
                 self.assertEqual(client.actions, [])
+
+    def test_launch_reports_click_failure_after_recognizing_exact_button(self):
+        target = detail("学园偶像大师", STOP, LAUNCH)
+        client = TestClient(target, target)
+        with patch.object(client, "click", side_effect=BoostError("控件被其他窗口遮挡")) as click:
+            with self.assertRaisesRegex(BoostError, "已识别「学园偶像大师」的「启动游戏」，点击失败"):
+                self.run_boost(client, launch_game=True)
+        click.assert_called_once_with(LAUNCH)
 
     def test_launch_stays_blocked_during_purchase_prompt_or_other_game(self):
         target = detail("学园偶像大师", STOP, LAUNCH, label("立即购买", 500, 390))
@@ -167,11 +181,7 @@ class UuBoostTests(unittest.TestCase):
 
     def test_switches_verified_active_page_then_waits_for_the_result(self):
         old = detail("边狱公司", STOP)
-        stop_dialog = detail(
-            "边狱公司", STOP,
-            label("重新加速，将断开正在加速游戏连接", 500, 360),
-            CONFIRM, label("取消", 567, 456),
-        )
+        stop_dialog = detail("边狱公司", STOP, STOP_NOTICE, CONFIRM, CANCEL)
         target = detail("学园偶像大师", STOP)
         client = TestClient(
             old, stop_dialog, page(), page(), page(), page(RESULT), target, target,
@@ -181,6 +191,43 @@ class UuBoostTests(unittest.TestCase):
             ("click", STOP), ("click", CONFIRM), ("search", SEARCH, "学园偶像大师"),
             ("click", RESULT),
         ])
+
+    def test_inherited_stop_confirmation_resumes_switch_or_keeps_target_active(self):
+        target = detail("学园偶像大师", STOP, LAUNCH)
+        old_dialog = detail("边狱公司", STOP, STOP_NOTICE, CONFIRM, CANCEL)
+        client = TestClient(old_dialog, old_dialog, page(), page(), page(), page(RESULT), target, target)
+        self.run_boost(client, launch_game=True)
+        self.assertEqual(client.actions, [
+            ("click", CONFIRM), ("search", SEARCH, "学园偶像大师"),
+            ("click", RESULT), ("click", LAUNCH),
+        ])
+
+        target_dialog = detail("学园偶像大师", STOP, LAUNCH, STOP_NOTICE, CONFIRM, CANCEL)
+        client = TestClient(target_dialog, target_dialog, target, target)
+        self.run_boost(client, launch_game=True)
+        self.assertEqual(client.actions, [("click", CANCEL), ("click", LAUNCH)])
+
+    def test_alternate_stop_buttons_require_own_stop_request_and_modal_row(self):
+        old = detail("边狱公司", STOP)
+        notice = label("确定停止加速吗？", 500, 360)
+        for confirm, cancel in (
+            (label("停止加速", 432, 456), CANCEL),
+            (label("确认停止", 568, 456), label("取消", 432, 456)),
+        ):
+            with self.subTest(confirm=confirm, cancel=cancel):
+                dialog = detail("边狱公司", STOP, notice, confirm, cancel)
+                target = detail("学园偶像大师", STOP)
+                client = TestClient(old, dialog, page(), page(), page(), page(RESULT), target, target)
+                self.run_boost(client)
+                self.assertEqual(client.actions, [
+                    ("click", STOP), ("click", confirm),
+                    ("search", SEARCH, "学园偶像大师"), ("click", RESULT),
+                ])
+
+                client = TestClient(*([dialog] * 15))
+                with self.assertRaisesRegex(BoostError, "停止加速确认仍显示"):
+                    self.run_boost(client)
+                self.assertEqual(client.actions, [])
 
     def test_stop_dialog_with_purchase_never_clicks_confirm(self):
         old = detail("边狱公司", STOP)
@@ -218,6 +265,42 @@ class UuBoostTests(unittest.TestCase):
         )
         self.run_boost(client, region="日服")
         self.assertEqual(client.actions, [("click", selector), ("click", region), ("click", START)])
+
+
+class DesktopWindowTests(unittest.TestCase):
+    def setUp(self):
+        self.client = object.__new__(DesktopClient)
+        self.client.rect = SimpleNamespace(left=10, top=20)
+        self.client.window = Mock(handle=100)
+        self.client.window.rectangle.return_value = self.client.rect
+        self.client.window.is_minimized.return_value = False
+        self.client.window_errors = (OSError, RuntimeError)
+        self.client.gui = Mock()
+        self.client.gui.GetForegroundWindow.return_value = 100
+        self.client.gui.IsChild.side_effect = lambda main, hwnd: hwnd == 101
+        self.client.get_ancestor = Mock(side_effect=lambda hwnd, flags: 100 if hwnd in {200, 300} else hwnd)
+        self.client.window_thread_process = Mock(side_effect=lambda hwnd: (1, 8 if hwnd == 300 else 9))
+
+    def test_owned_dialog_can_keep_foreground(self):
+        self.client.gui.GetForegroundWindow.return_value = 200
+        self.client._focus()
+        self.client.window.set_focus.assert_not_called()
+
+    def test_foreign_or_unrelated_foreground_never_counts_as_uu(self):
+        for hwnd in (0, 300, 400):
+            with self.subTest(hwnd=hwnd):
+                self.client.gui.GetForegroundWindow.return_value = hwnd
+                with self.assertRaisesRegex(BoostError, "未取得前台焦点"):
+                    self.client._focus()
+
+    def test_hit_target_must_be_main_child_or_same_process_owned_window(self):
+        for hwnd in (100, 101, 200):
+            self.client.gui.WindowFromPoint.return_value = hwnd
+            self.assertEqual(self.client._point(LAUNCH), (105, 367))
+        for hwnd in (0, 300, 400):
+            self.client.gui.WindowFromPoint.return_value = hwnd
+            with self.assertRaisesRegex(BoostError, "控件被其他窗口遮挡"):
+                self.client._point(LAUNCH)
 
 
 if __name__ == "__main__":
