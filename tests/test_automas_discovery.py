@@ -4,7 +4,7 @@ from unittest.mock import patch
 from uuid import UUID
 
 from core.auto_setup import resolve_automatic
-from core.automas_backend import AutoMasProfile, discover_automas
+from core.automas_backend import NKAS_SUCCESS, AutoMasProfile, discover_automas
 from core.config_loader import GameConfig, HubConfig
 
 
@@ -12,7 +12,7 @@ def _profile(number, script_type, name, repository=None):
     return str(UUID(int=number)), script_type, name, repository
 
 
-def _upstream(profiles, project_names=None):
+def _upstream(profiles, project_names=None, profile_configs=None):
     def reply(port, endpoint, payload=None, **kwargs):
         if endpoint == "/api/core/health":
             return {"ready": True, "protocol": 1}
@@ -21,7 +21,10 @@ def _upstream(profiles, project_names=None):
                 "code": 200,
                 "status": "success",
                 "index": [{"uid": script_id, "type": script_type} for script_id, script_type, _, _ in profiles],
-                "data": {script_id: {"Info": {"Name": name}} for script_id, _, name, _ in profiles},
+                "data": {
+                    script_id: (profile_configs or {}).get(script_id, {"Info": {"Name": name}})
+                    for script_id, _, name, _ in profiles
+                },
             }
         if endpoint == "/api/scripts/maafw/preview":
             script_id = payload["scriptId"]
@@ -42,7 +45,6 @@ class AutoMasDiscoveryTest(unittest.TestCase):
             "genshin": _profile(4, "BetterGIConfig", "提瓦特"),
             "bhxy2": _profile(5, "MaaFWConfig", "B 服账号", "https://github.com/freeze-12/MaaBH2"),
             "endfield": _profile(6, "MaaEndConfig", "工地"),
-            "nikke": _profile(7, "MaaFWConfig", "前哨基地", "https://github.com/1204244136/MDA"),
             "gakumas": _profile(8, "MaaFWConfig", "学マス", "https://github.com/SuperWaterGod/MaaGakumasu"),
         }
         with patch("core.automas_backend._request", side_effect=_upstream(tuple(targets.values()))):
@@ -68,16 +70,34 @@ class AutoMasDiscoveryTest(unittest.TestCase):
 
     def test_uu_variants_resolve_to_the_same_game_ids_as_the_standard_profiles(self):
         profiles = tuple(_profile(i, "MaaFWConfig", game) for i, game in enumerate(
-            ("nikke", "gakumas", "dotabyss"), start=1,
+            ("gakumas", "dotabyss"), start=1,
         ))
         project_names = dict(zip(
             (row[0] for row in profiles),
-            ("DailyClearHubUuNikke", "DailyClearHubUuGakumas", "DailyClearHubUuDotAbyss"),
+            ("DailyClearHubUuGakumas", "DailyClearHubUuDotAbyss"),
         ))
         with patch("core.automas_backend._request", side_effect=_upstream(profiles, project_names)):
-            result = discover_automas(36163, ("nikke", "gakumas", "dotabyss"))
+            result = discover_automas(36163, ("gakumas", "dotabyss"))
         for script_id, _, game, _ in profiles:
             self.assertEqual((AutoMasProfile(script_id, game),), result[game])
+
+    def test_nikke_only_uses_the_registered_nkas_adapter(self):
+        nkas = _profile(1, "GeneralConfig", "我的 NKAS")
+        mda = _profile(2, "MaaFWConfig", "旧 NIKKE", "https://github.com/1204244136/MDA")
+        old_uu = _profile(3, "MaaFWConfig", "旧 NIKKE UU")
+        unrelated = _profile(4, "GeneralConfig", "NKAS 同名托管")
+        configuration = {
+            "Info": {"Name": nkas[2], "RootPath": r"C:\Tools\nikke-automas"},
+            "Script": {
+                "ScriptPath": r".venv\Scripts\python.exe", "SuccessLog": NKAS_SUCCESS,
+                "SuccessLogMode": "Regex",
+            },
+        }
+        with patch("core.automas_backend._request", side_effect=_upstream(
+            (nkas, mda, old_uu, unrelated), {old_uu[0]: "DailyClearHubUuNikke"}, {nkas[0]: configuration},
+        )):
+            result = discover_automas(36163, ("nikke",))
+        self.assertEqual((AutoMasProfile(nkas[0], nkas[2]),), result["nikke"])
 
     def test_mfw_fork_with_spoofed_name_does_not_match(self):
         profiles = (

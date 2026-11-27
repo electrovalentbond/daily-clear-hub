@@ -124,7 +124,7 @@ function Find-ReleaseEntry([string]$Root, [string]$Filename) {
     return $Entries[0].FullName
 }
 
-function Install-ZipRelease([hashtable]$Release) {
+function Install-ArchiveRelease([hashtable]$Release) {
     $Destination = Join-Path $ToolsRoot $Release.Folder
     $Pending = Join-Path $Downloads "$($Release.Folder).extracting"
     $Resuming = Test-Path -LiteralPath $Pending -PathType Leaf
@@ -132,19 +132,24 @@ function Install-ZipRelease([hashtable]$Release) {
         return (Find-ReleaseEntry $Destination $Release.Entry)
     }
 
-    $Zip = Join-Path $Downloads ([IO.Path]::GetFileName($Release.Url))
-    Receive-Asset $Release.Url $Zip $Release.Sha256
+    $Archive = Join-Path $Downloads ([IO.Path]::GetFileName($Release.Url))
+    Receive-Asset $Release.Url $Archive $Release.Sha256
     # Record incomplete extraction before creating the destination so reruns can repair it.
     [IO.File]::WriteAllText($Pending, $Release.Sha256)
-    Write-Host "Extracting $Zip to $Destination"
+    Write-Host "Extracting $Archive to $Destination"
     try {
-        Expand-Archive -LiteralPath $Zip -DestinationPath $Destination -Force:$Resuming -ErrorAction Stop
+        if ($Archive.EndsWith('.7z')) {
+            [IO.Directory]::CreateDirectory($Destination) | Out-Null
+            Invoke-CheckedNative 'tar.exe' @('-xf', $Archive, '-C', $Destination) | Out-Host
+        } else {
+            Expand-Archive -LiteralPath $Archive -DestinationPath $Destination -Force:$Resuming -ErrorAction Stop
+        }
         $Entry = Find-ReleaseEntry $Destination $Release.Entry
     } catch {
-        throw "Could not finish extracting $Zip to ${Destination}: $($_.Exception.Message) Rerun setup to reuse this ZIP."
+        throw "Could not finish extracting $Archive to ${Destination}: $($_.Exception.Message) Rerun setup to reuse this archive."
     }
     Remove-Item -LiteralPath $Pending
-    Remove-Item -LiteralPath $Zip -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $Archive -ErrorAction SilentlyContinue
     return $Entry
 }
 
@@ -194,10 +199,10 @@ $Releases = @{
         Sha256 = '2314044246733df849b7bc87c7fd99b8264f349eb947873701dea498d279b6b6'
     }
     nikke = @{
-        Folder = 'MDA-v1.13.10'
-        Entry = 'interface.json'
-        Url = 'https://github.com/1204244136/MDA/releases/download/v1.13.10/MDA-win-x86_64-v1.13.10.zip'
-        Sha256 = '9836b5dddad10b5697f5f391c93e3bee379b640d4323f2240ec695c38c3b7685'
+        Folder = 'NKAS-v1.2.0'
+        Entry = 'main.py'
+        Url = 'https://github.com/megumiss/NIKKEAutoScript/releases/download/v1.2.0/NKAS_v1.2.0_full-cn.7z'
+        Sha256 = '6909345d55ec61161cd0a1978d23ef61a6d608d6be42040fe42b3b298d6ab735'
     }
     gakumas = @{
         Folder = 'MaaGakumasu-v1.5.4'
@@ -235,7 +240,7 @@ function Prepare-Pcr {
             throw "Preserved existing pcr-script checkout at $Project. Choose another -ToolsRoot for revision $PcrRevision."
         }
     } else {
-        $Project = Split-Path -Parent (Install-ZipRelease $Releases.pcr)
+        $Project = Split-Path -Parent (Install-ArchiveRelease $Releases.pcr)
     }
 
     $Python = Get-ProjectPython $Project
@@ -269,6 +274,41 @@ function Install-UuRuntime {
     return $Python
 }
 
+function Prepare-Nkas {
+    if ($ToolsRoot -cmatch '[^\x00-\x7F]') {
+        throw 'NKAS requires an ASCII installation path. Use -ToolsRoot C:\Tools\DailyAutomation.'
+    }
+    $Project = Split-Path -Parent (Install-ArchiveRelease $Releases.nikke)
+    $NkasPython = Join-Path $Project 'toolkit\python.exe'
+    if (-not (Test-Path -LiteralPath $NkasPython -PathType Leaf)) {
+        throw "Missing NKAS bundled Python at $NkasPython. Check installation directory $Project."
+    }
+    $AdapterSource = Join-Path $HubRoot 'integrations\nkas-automas'
+    $Adapter = Join-Path $ToolsRoot 'nikke-automas'
+    $Logs = Join-Path $Adapter 'logs'
+    [IO.Directory]::CreateDirectory($Logs) | Out-Null
+    $Python = Get-ProjectPython $Adapter
+    foreach ($Item in @('run.py', 'run_once.py')) {
+        Copy-Item -LiteralPath (Join-Path $AdapterSource $Item) -Destination $Adapter -Force
+    }
+    $LocalFile = Join-Path $Adapter 'local.json'
+    [IO.File]::WriteAllText($LocalFile, (@{ nkas_root = $Project } | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
+    $Settings = Join-Path $Adapter 'nikke.json'
+    if (-not (Test-Path -LiteralPath $Settings -PathType Leaf)) {
+        $DefaultSettings = @{ profile = 'nkas'; uu = @{ game = ''; region = ''; exe = '' } } | ConvertTo-Json
+        [IO.File]::WriteAllText($Settings, $DefaultSettings, [Text.UTF8Encoding]::new($false))
+    }
+    $ExampleLog = Join-Path $Logs 'run-20000101-000000-000000.log'
+    if (-not (Test-Path -LiteralPath $ExampleLog -PathType Leaf)) {
+        [IO.File]::WriteAllText($ExampleLog, '')
+    }
+    Write-Host "nikke NKAS project: $Project"
+    Write-Host "nikke NKAS Python: $NkasPython"
+    Write-Host "nikke AUTO-MAS adapter: $Adapter"
+    Write-Host "nikke adapter Python: $Python"
+    Write-Host "nikke adapter settings: $Settings"
+}
+
 function Install-UuProject([string]$Game, [string]$Interface, [string]$Folder) {
     $Source = Split-Path -Parent $Interface
     $Target = Join-Path $ToolsRoot "$Folder-UU"
@@ -298,7 +338,7 @@ function Install-UuProject([string]$Game, [string]$Interface, [string]$Folder) {
 }
 
 function Prepare-DotAbyss {
-    $Project = Split-Path -Parent (Install-ZipRelease $Releases.dotabyss)
+    $Project = Split-Path -Parent (Install-ArchiveRelease $Releases.dotabyss)
     $Python = Get-ProjectPython $Project
     Invoke-CheckedNative $Python @(
         '-m', 'pip', 'install', '--disable-pip-version-check', '-r', (Join-Path $Project 'requirements.txt'),
@@ -331,7 +371,7 @@ try {
     Invoke-CheckedNative $HubPython @('-m', 'pip', 'install', '--disable-pip-version-check', 'PyYAML==6.0.3')
     Write-Host "Hub Python: $HubPython"
 
-    $MasExe = Install-ZipRelease $Releases.automas
+    $MasExe = Install-ArchiveRelease $Releases.automas
     Write-Host "AUTO-MAS: $MasExe"
     if ($WithUu) {
         $UuRoot = Join-Path $ToolsRoot 'uu-automas'
@@ -341,9 +381,10 @@ try {
         switch ($Game) {
             'genshin' { Install-BetterGI }
             'pcr' { Prepare-Pcr }
+            'nikke' { Prepare-Nkas }
             'dotabyss' { Prepare-DotAbyss }
             default {
-                $Entry = Install-ZipRelease $Releases[$Game]
+                $Entry = Install-ArchiveRelease $Releases[$Game]
                 if ($Game -eq 'bhxy2') {
                     Invoke-CheckedNative $HubPython @((Join-Path $PSScriptRoot 'patch_maabh2.py'), $Entry)
                 }

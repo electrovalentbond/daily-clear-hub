@@ -19,7 +19,7 @@
 
 加装 NIKKE 国际服、学园偶像大师和 Dot Abyss 时，运行 `& .\scripts\setup-windows.ps1 -Games nikke,gakumas,dotabyss`，再将新托管加入已有队列。[三款游戏的配置步骤](docs/new-mfw-games.md)
 
-要在上述三款游戏执行前自动切换网易 UU，可在安装命令加 `-WithUu`，然后在托管中勾选「切换网易 UU 加速」。[UU 加速配置](docs/new-mfw-games.md#可选的-uu-加速)
+要在上述三款游戏执行前自动切换网易 UU，可在安装命令加 `-WithUu`，再按托管类型启用。[UU 加速配置](docs/new-mfw-games.md#可选的-uu-加速)
 
 已有的手动 YAML 可以继续使用 `run`。使用 [ok-script](https://github.com/ok-oldking/ok-script) 和本机 COCO 模板时，选择 `backend: native`，用 `gui endfield --debug` 打开单游戏诊断。
 
@@ -35,7 +35,7 @@
 - 公主连结 B 服使用 [pcr-script](https://github.com/Gibberer/pcr-script) 的任务与识别素材，由 Hub 的 MFW 适配器接入 AUTO-MAS。
 - 崩坏学园 2 使用 [MaaBH2](https://github.com/freeze-12/MaaBH2)，也可手动配置独立的 [Honkai2Automation](https://github.com/lolineet/Honkai2Automation) 后端。
 - 明日方舟：终末地使用 [MaaEnd](https://github.com/MaaEnd/MaaEnd)。
-- NIKKE 国际服使用 [MDA](https://github.com/1204244136/MDA) 的简中识别资源。
+- NIKKE 国际服使用 [NIKKEAutoScript（NKAS）](https://github.com/megumiss/NIKKEAutoScript)，由 Hub 的通用托管适配器接入 AUTO-MAS。
 - 学园偶像大师使用 [MaaGakumasu](https://github.com/SuperWaterGod/MaaGakumasu)。
 - Dot Abyss 使用 [MaaDotAbyss](https://github.com/Azure-Sora/MaaDotAbyss) 的日文 DMM 流程，由 Hub 的 MFW 适配器接入 AUTO-MAS。
 

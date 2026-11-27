@@ -5,6 +5,7 @@ import json
 import re
 import time
 from dataclasses import dataclass
+from pathlib import PureWindowsPath
 from uuid import UUID
 
 from core.config_loader import GameConfig
@@ -21,11 +22,13 @@ _MAA_PROJECTS = {
     "honkai3": ("https://github.com/miaojiuqing/maa_bbb",),
     "endfield": ("https://github.com/maaend/maaend",),
     "bhxy2": ("https://github.com/freeze-12/maabh2",),
-    "nikke": ("https://github.com/1204244136/mda", "name:DailyClearHubUuNikke"),
     "gakumas": ("https://github.com/superwatergod/maagakumasu", "name:DailyClearHubUuGakumas"),
     "dotabyss": ("name:DailyClearDotAbyss", "name:DailyClearHubUuDotAbyss"),
 }
-AUTOMAS_GAMES = frozenset((*_SPECIALIZED_GAMES.values(), *_MAA_PROJECTS))
+AUTOMAS_GAMES = frozenset((*_SPECIALIZED_GAMES.values(), *_MAA_PROJECTS, "nikke"))
+NKAS_ADAPTER = "nikke-automas"
+NKAS_SUCCESS = r"(?:^|\n)\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6} DCH_NKAS_DONE(?:\r?\n|$)"
+NKAS_FAILURE = r"(?:^|\n)\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}\.\d{6} DCH_NKAS_FAILED(?: |\r?\n|$)"
 _ACCOUNT_TOTALS = re.compile(r"^ {4}已完成账号数：([0-9]+)；未完成账号数：([0-9]+)$", re.MULTILINE)
 _MAX_RESPONSE = 4 * 1024 * 1024
 
@@ -113,6 +116,28 @@ def _maa_project_key(port: int, script_id: str) -> str | None:
     return f"name:{name}" if isinstance(name, str) and name else None
 
 
+def is_nkas_profile(config: object) -> bool:
+    script = config.get("Script") if isinstance(config, dict) else None
+    if not isinstance(script, dict):
+        return False
+    path = script.get("ScriptPath")
+    if not isinstance(path, str):
+        return False
+    target = PureWindowsPath(path)
+    if not target.is_absolute():
+        info = config.get("Info")
+        root = info.get("RootPath") if isinstance(info, dict) else None
+        if not isinstance(root, str):
+            return False
+        target = PureWindowsPath(root) / target
+    return (
+        tuple(part.casefold() for part in target.parts[-4:])
+        == (NKAS_ADAPTER, ".venv", "scripts", "python.exe")
+        and script.get("SuccessLog") == NKAS_SUCCESS
+        and script.get("SuccessLogMode") == "Regex"
+    )
+
+
 def discover_automas(port: int, game_ids: tuple[str, ...]) -> dict[str, tuple[AutoMasProfile, ...]]:
     """从既有托管识别支持的游戏，名称只用于显示。"""
     if not game_ids:
@@ -135,6 +160,10 @@ def discover_automas(port: int, game_ids: tuple[str, ...]) -> dict[str, tuple[Au
         if not isinstance(script_type, str):
             raise ValueError("AUTO-MAS 返回的托管类型无效")
         game_id = _SPECIALIZED_GAMES.get(script_type)
+        if script_type == "GeneralConfig" and "nikke" in profiles:
+            script_id = _uuid(row.get("uid"), "托管 ID")
+            if is_nkas_profile(data.get(script_id)):
+                game_id = "nikke"
         if script_type == "MaaFWConfig" and project_keys:
             script_id = _uuid(row.get("uid"), "托管 ID")
             try:
@@ -172,7 +201,11 @@ def check_automas(game_id: str, game: GameConfig) -> None:
         raise ValueError(f"AUTO-MAS 未返回指定托管 {script_id}")
 
     script_type = index[0].get("type")
-    if script_type == "MaaFWConfig" and game_id in _MAA_PROJECTS:
+    if game_id == "nikke":
+        data = scripts.get("data")
+        if script_type != "GeneralConfig" or not isinstance(data, dict) or not is_nkas_profile(data.get(script_id)):
+            raise ValueError("NIKKE 请使用 Hub 注册的 NKAS 通用托管")
+    elif script_type == "MaaFWConfig" and game_id in _MAA_PROJECTS:
         if _maa_project_key(port, script_id) not in _MAA_PROJECTS[game_id]:
             raise ValueError(f"AUTO-MAS 托管 {script_id} 未使用 {game.name} 的上游项目")
     elif not isinstance(script_type, str) or _SPECIALIZED_GAMES.get(script_type) != game_id:

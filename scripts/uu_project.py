@@ -12,7 +12,6 @@ TASK_NAME = "DailyClearHubUuBoost"
 OPTION_NAME = "DailyClearHubUuSettings"
 OPTIONS_ENV = "DAILY_CLEAR_HUB_UU_OPTIONS"
 PROJECTS = {
-    "nikke": ("DailyClearHubUuNikke", "NIKKE 国际服（含 UU）"),
     "gakumas": ("DailyClearHubUuGakumas", "学园偶像大师（含 UU）"),
     "dotabyss": ("DailyClearHubUuDotAbyss", "Dot Abyss（含 UU）"),
 }

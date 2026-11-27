@@ -9,15 +9,38 @@ git pull --ff-only
 & .\scripts\setup-windows.ps1 -Games nikke,gakumas,dotabyss
 ```
 
-可以只传入需要的游戏 ID。完成后到 **AUTO-MAS → 托管管理 → 新建托管 → MFW 脚本**，逐个导入下面指定的目录。等「运行环境」准备好，再为每个托管添加并启用账号，在账号的「任务队列」里添加日常。单个托管验证成功后，从现有「调度队列」点「添加任务」把它加入原来的队列。[AUTO-MAS MFW 配置指南](https://doc.auto-mas.top/docs/script-guide/maafw.html)
+可以只传入需要的游戏 ID。学园偶像大师和 Dot Abyss 在 **AUTO-MAS → 托管管理 → 新建托管 → MFW 脚本** 导入。等「运行环境」准备好，再添加账号和任务。NIKKE 国际服按下文注册 NKAS 通用托管。单个托管验证成功后，从现有「调度队列」点「添加任务」加入队列。[AUTO-MAS MFW 配置指南](https://doc.auto-mas.top/docs/script-guide/maafw.html)
 
 ## NIKKE 国际服
 
-1. 导入 `nikke:` 后面的 MDA 目录，资源选「国际服」。进游戏登录，把**游戏内语言**设为「简体中文」。MDA 自己的界面可以显示英文，游戏识别用的是简中画面。[MDA 语言适配](https://github.com/1204244136/MDA/blob/v1.13.10/README.md#语言适配说明) · [Windows 发布包](https://github.com/1204244136/MDA/releases/tag/v1.13.10)
-2. **Windows 客户端**先用官方启动器打开游戏。在 MFW 控制器选「电脑端-默认」，「PC 游戏启动方式」选「由脚本自身控制游戏」，运行时让 AUTO-MAS 接管已打开的窗口。第一次连接前可让窗口处于可见状态。**安卓模拟器**选「安卓端」，绑定安装了国际服且已登录的实例。「游戏包名」填 `com.proximabeta.nikke`，AUTO-MAS 可随模拟器启动游戏。[控制器设置](https://github.com/1204244136/MDA/blob/v1.13.10/assets/interface.json) · [国际服安卓包名](https://play.google.com/store/apps/details?id=com.proximabeta.nikke)
-3. 先添加「进入大厅」和「每日奖励」。验证后可以添加「前哨基地」「咨询」「模拟室」等任务，或从任务队列应用「快速日常」预设。MDA 免费档每天有 **10 分钟的 MDA 自动化运行时间**，北京时间 04:00 刷新，收费档可增加额度。用「额度显示」查看剩余时间。UU 加速时长由你的 UU 账户套餐决定。[快速日常预设](https://github.com/1204244136/MDA/blob/v1.13.10/assets/tasks/preset/QuickDaily.json) · [MDA 额度源码](https://github.com/1204244136/MDA/blob/v1.13.10/agent/go-service/taskersink/membership/quota.go) · [MDA 会员方案](https://doropay.top/)
+NIKKE 国际服使用开源 [NIKKEAutoScript（NKAS）](https://github.com/megumiss/NIKKEAutoScript) 的 Windows 完整包。AUTO-MAS 触发一轮运行，NKAS 根据自己的实例配置执行已启用且到期的任务，随后退出，把控制交还队列。已经完成或尚未到运行时间的项目会按 NKAS 的日程跳过。[NKAS v1.2.0 发布包](https://github.com/megumiss/NIKKEAutoScript/releases/tag/v1.2.0)
 
-**也可以独立使用 NKAS。** NIKKEAutoScript 支持国际服 Windows 和 ADB，其 PC 指南要求简中，ADB 的英文识别覆盖部分任务。NKAS 自带常驻调度。需要在同一个 AUTO-MAS 队列中逐项选任务时，使用上面的 MDA 托管。[NKAS 发布页](https://github.com/megumiss/NIKKEAutoScript/releases/tag/v1.2.0) · [Windows 配置](https://github.com/megumiss/NIKKEAutoScript/wiki/Quick-Installation-Guide.zh-CN) · [模拟器配置](https://github.com/megumiss/NIKKEAutoScript/wiki/Usage-Guide-Emulator.zh-CN)
+1. 在仓库目录运行安装。NKAS 的安装目录须使用 ASCII 字符；自定义路径时，在后续注册命令也传同一个 `--tools-root`。需要 UU 时，安装命令加 `-WithUu`。[Windows 自带 tar.exe 支持的格式](https://learn.microsoft.com/en-us/windows/tar/)
+
+   ```powershell
+   git pull --ff-only
+   & .\scripts\setup-windows.ps1 -Games nikke
+   ```
+
+2. 用安装输出里的 `nikke NKAS project:` 路径打开 NKAS 的本机配置页。以下命令以默认安装目录为例。在浏览器访问 `http://127.0.0.1:12271`，创建或保存一个名为 `nkas` 的实例，选「国际服」，按需启用邮件、前哨收益、派遣或任务领奖等项目。使用不同实例名时，在安装输出的 `nikke adapter settings:` 对应 `nikke.json` 中改 `profile`。完成后停止 NKAS 网页中的调度，关闭这个 PowerShell 里的配置服务；日常由 AUTO-MAS 调度。该实例的 NKAS「串行模式」需关闭。[NKAS 配置指南](https://github.com/megumiss/NIKKEAutoScript/wiki/Configuration-Guide)
+
+   ```powershell
+   $NkasRoot = Join-Path $env:USERPROFILE 'Games\DailyAutomation\NKAS-v1.2.0'
+   Push-Location $NkasRoot
+   try { & .\toolkit\python.exe .\gui.py --host 127.0.0.1 }
+   finally { Pop-Location }
+   ```
+
+   - **Windows 客户端**使用简体中文的游戏界面，按 NKAS 指南指定官方启动器并先登录一次。以管理员权限运行 AUTO-MAS。NKAS 根据保存的启动器配置打开游戏。[Windows 配置指南](https://github.com/megumiss/NIKKEAutoScript/wiki/Quick-Installation-Guide.zh-CN)
+   - **安卓模拟器**先启动已登录的模拟器实例，在 NKAS 里填写其实际 ADB 序列号，资源选「国际服」。简体中文覆盖较完整，ADB 英文仅覆盖部分任务。运行前保留模拟器在线。[模拟器配置指南](https://github.com/megumiss/NIKKEAutoScript/wiki/Usage-Guide-Emulator.zh-CN)
+
+3. 保持 AUTO-MAS 打开，回到仓库根目录运行注册命令。然后在 AUTO-MAS「调度队列 → 添加任务」加入 **NIKKE 国际服（NKAS）**。已有 MDA 托管时，把该队列中的旧 NIKKE 项换成这一项。[AUTO-MAS 通用托管](https://doc.auto-mas.top/docs/script-guide/general.html)
+
+   ```powershell
+   & .\.venv\Scripts\python.exe -m scripts.register_nkas
+   ```
+
+   日常项目在 NKAS 配置，单轮结果在 AUTO-MAS 历史记录看。识别、登录和设备细节在 NKAS 项目的 `log` 目录。若可选的 `config.local.yaml` 固定了旧 NIKKE 托管 ID，把它换成注册命令输出的 ID，也可删除该绑定让 Hub 自动发现。
 
 ## 学园偶像大师
 
@@ -52,7 +75,19 @@ git pull --ff-only
 & .\scripts\setup-windows.ps1 -Games nikke,gakumas,dotabyss -WithUu
 ```
 
-1. 在 AUTO-MAS 新建「MFW 脚本」，导入每款游戏输出中 `UU AUTO-MAS project:` 后面的目录。按上文选择控制器和资源、添加账号，再把这份托管放进现有队列。如果这款游戏已有普通托管，从队列里把该项换成含 UU 的托管即可。
+### NIKKE 国际服
+
+安装时加 `-WithUu`，在输出的 `nikke adapter settings:` 对应 `nikke.json` 中填写 `uu.game` 为卡片全名。需要核对区服可填 `uu.region`。UU 未打开且安装目录无法自动查找时，再填 `uu.exe` 字段为 `uu.exe` 或 `uu_launcher.exe` 的完整路径。随后在仓库目录运行：
+
+```powershell
+& .\.venv\Scripts\python.exe -m scripts.register_nkas --with-uu
+```
+
+此命令会给现有 NKAS 托管启用加速。也可在该托管的「脚本参数」里添加或删除 `--uu`。UU 确认加速成功后，托管才会运行 NKAS。
+
+### 学园偶像大师和 Dot Abyss
+
+1. 在 AUTO-MAS 新建「MFW 脚本」，导入输出中 `UU AUTO-MAS project:` 后面的目录。按上文选择控制器和资源、添加账号，再把这份托管放进现有队列。如果这款游戏已有普通托管，从队列里把该项换成含 UU 的托管即可。
 2. 打开该账号的「任务队列」。先添加需要的日常或应用预设，再点「添加任务」，搜索并勾选「切换网易 UU 加速」。填写 UU 中的游戏全名。要强制核对区服时，填写 UU 显示的区服文字。UU 已打开时可留空程序路径；需要由脚本打开，且默认安装位置未找到时，再填 `uu.exe` 或 `uu_launcher.exe` 的完整路径。若还有别的启动前任务，把 UU 放在最前面。[AUTO-MAS 前置任务的执行顺序](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/tools/embedded/runner_task.py#L873-L889)
 3. 解锁桌面并试跑该托管。脚本会打开或接管 UU，必要时停止旧加速，确认目标游戏显示加速状态后再继续。无法确认时，本次运行在前置任务处失败，可到历史记录查看原因。DMM 仍按上文通过官方启动器进入游戏，前置任务执行时保持 UU 窗口可见。
 

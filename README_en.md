@@ -13,7 +13,7 @@ Follow the Windows guide to prepare the games and configure their saved profiles
 & .\scripts\setup-windows.ps1 -Games honkai3,starrail,zzz,genshin,pcr,bhxy2,endfield
 ```
 
-To add the three optional MFW projects to an existing queue, run `& .\scripts\setup-windows.ps1 -Games nikke,gakumas,dotabyss` and follow the [profile setup guide](docs/new-mfw-games.md).
+To add NKAS for NIKKE Global and the two MFW projects to an existing queue, run `& .\scripts\setup-windows.ps1 -Games nikke,gakumas,dotabyss` and follow the [profile setup guide](docs/new-mfw-games.md).
 
 Create the profiles and add them to an AUTO-MAS scheduling queue, then select the queue and start it from the dispatch center. The [optional CLI](docs/windows.md) still supports `run --automas` and manual YAML configurations. The `native` backend uses [ok-script](https://github.com/ok-oldking/ok-script) and local templates.
 
