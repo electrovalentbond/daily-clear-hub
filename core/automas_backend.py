@@ -18,12 +18,12 @@ _SPECIALIZED_GAMES = {
     "ZzzOdConfig": "zzz",
 }
 _MAA_PROJECTS = {
-    "honkai3": "https://github.com/miaojiuqing/maa_bbb",
-    "endfield": "https://github.com/maaend/maaend",
-    "bhxy2": "https://github.com/freeze-12/maabh2",
-    "nikke": "https://github.com/1204244136/mda",
-    "gakumas": "https://github.com/superwatergod/maagakumasu",
-    "dotabyss": "name:DailyClearDotAbyss",
+    "honkai3": ("https://github.com/miaojiuqing/maa_bbb",),
+    "endfield": ("https://github.com/maaend/maaend",),
+    "bhxy2": ("https://github.com/freeze-12/maabh2",),
+    "nikke": ("https://github.com/1204244136/mda", "name:DailyClearHubUuNikke"),
+    "gakumas": ("https://github.com/superwatergod/maagakumasu", "name:DailyClearHubUuGakumas"),
+    "dotabyss": ("name:DailyClearDotAbyss", "name:DailyClearHubUuDotAbyss"),
 }
 AUTOMAS_GAMES = frozenset((*_SPECIALIZED_GAMES.values(), *_MAA_PROJECTS))
 _ACCOUNT_TOTALS = re.compile(r"^ {4}已完成账号数：([0-9]+)；未完成账号数：([0-9]+)$", re.MULTILINE)
@@ -127,7 +127,9 @@ def discover_automas(port: int, game_ids: tuple[str, ...]) -> dict[str, tuple[Au
         raise ValueError("AUTO-MAS 返回的托管列表格式不兼容")
 
     profiles: dict[str, list[AutoMasProfile]] = {game_id: [] for game_id in game_ids}
-    project_keys = {key: game_id for game_id, key in _MAA_PROJECTS.items() if game_id in profiles}
+    project_keys = {
+        key: game_id for game_id in profiles for key in _MAA_PROJECTS.get(game_id, ())
+    }
     for row in index:
         script_type = row.get("type")
         if not isinstance(script_type, str):
@@ -171,7 +173,7 @@ def check_automas(game_id: str, game: GameConfig) -> None:
 
     script_type = index[0].get("type")
     if script_type == "MaaFWConfig" and game_id in _MAA_PROJECTS:
-        if _maa_project_key(port, script_id) != _MAA_PROJECTS[game_id]:
+        if _maa_project_key(port, script_id) not in _MAA_PROJECTS[game_id]:
             raise ValueError(f"AUTO-MAS 托管 {script_id} 未使用 {game.name} 的上游项目")
     elif not isinstance(script_type, str) or _SPECIALIZED_GAMES.get(script_type) != game_id:
         expected = [name for name, target in _SPECIALIZED_GAMES.items() if target == game_id]

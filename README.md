@@ -19,6 +19,8 @@
 
 加装 NIKKE 国际服、学园偶像大师和 Dot Abyss 时，运行 `& .\scripts\setup-windows.ps1 -Games nikke,gakumas,dotabyss`，再将新托管加入已有队列。[三款游戏的配置步骤](docs/new-mfw-games.md)
 
+要在上述三款游戏执行前自动切换网易 UU，可在安装命令加 `-WithUu`，然后在托管中勾选「切换网易 UU 加速」。[UU 加速配置](docs/new-mfw-games.md#可选的-uu-加速)
+
 已有的手动 YAML 可以继续使用 `run`。使用 [ok-script](https://github.com/ok-oldking/ok-script) 和本机 COCO 模板时，选择 `backend: native`，用 `gui endfield --debug` 打开单游戏诊断。
 
 ## 开源项目与源码仓库
@@ -40,6 +42,7 @@
 ### 运行框架和依赖
 
 - MFW 项目和公主连结的 Agent 使用 [MaaFramework](https://github.com/MaaXYZ/MaaFramework)。
+- 网易 UU 的可选前置任务使用 [pywinauto](https://github.com/pywinauto/pywinauto) 与 [RapidOCR](https://github.com/RapidAI/RapidOCR) 读取 Windows 客户端界面。
 - Hub 的本地模板后端使用 [ok-script](https://github.com/ok-oldking/ok-script)。
 - 配置、设备与输入依赖包括 [PyYAML](https://github.com/yaml/pyyaml)、[adbutils](https://github.com/openatx/adbutils) 和 [pynput](https://github.com/moses-palmer/pynput)。
 - OCR 和图像处理使用 [OnnxOCR PP-OCRv5](https://github.com/ok-oldking/OnnxOCR)、[OpenVINO](https://github.com/openvinotoolkit/openvino)、[opencv-python](https://github.com/opencv/opencv-python) 和 [OpenCC](https://github.com/BYVoid/OpenCC)。

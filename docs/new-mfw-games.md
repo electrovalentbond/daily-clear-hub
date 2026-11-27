@@ -15,7 +15,9 @@ git pull --ff-only
 
 1. 导入 `nikke:` 后面的 MDA 目录，资源选「国际服」。进游戏登录，把**游戏内语言**设为「简体中文」。MDA 自己的界面可以显示英文，游戏识别用的是简中画面。[MDA 语言适配](https://github.com/1204244136/MDA/blob/v1.13.10/README.md#语言适配说明) · [Windows 发布包](https://github.com/1204244136/MDA/releases/tag/v1.13.10)
 2. **Windows 客户端**先用官方启动器打开游戏。在 MFW 控制器选「电脑端-默认」，「PC 游戏启动方式」选「由脚本自身控制游戏」，运行时让 AUTO-MAS 接管已打开的窗口。第一次连接前可让窗口处于可见状态。**安卓模拟器**选「安卓端」，绑定安装了国际服且已登录的实例。「游戏包名」填 `com.proximabeta.nikke`，AUTO-MAS 可随模拟器启动游戏。[控制器设置](https://github.com/1204244136/MDA/blob/v1.13.10/assets/interface.json) · [国际服安卓包名](https://play.google.com/store/apps/details?id=com.proximabeta.nikke)
-3. 先添加「进入大厅」和「每日奖励」。验证后可以添加「前哨基地」「咨询」「模拟室」等任务，或从任务队列应用「快速日常」预设。MDA 上游免费档为每天 10 分钟，可添加「额度显示」查看剩余时间。[快速日常预设](https://github.com/1204244136/MDA/blob/v1.13.10/assets/tasks/preset/QuickDaily.json) · [上游运行额度](https://github.com/1204244136/MDA/blob/v1.13.10/agent/go-service/taskersink/membership/memberdata.go#L182-L284)
+3. 先添加「进入大厅」和「每日奖励」。验证后可以添加「前哨基地」「咨询」「模拟室」等任务，或从任务队列应用「快速日常」预设。MDA 免费档每天有 **10 分钟的 MDA 自动化运行时间**，北京时间 04:00 刷新，收费档可增加额度。用「额度显示」查看剩余时间。UU 加速时长由你的 UU 账户套餐决定。[快速日常预设](https://github.com/1204244136/MDA/blob/v1.13.10/assets/tasks/preset/QuickDaily.json) · [MDA 额度源码](https://github.com/1204244136/MDA/blob/v1.13.10/agent/go-service/taskersink/membership/quota.go) · [MDA 会员方案](https://doropay.top/)
+
+**也可以独立使用 NKAS。** NIKKEAutoScript 支持国际服 Windows 和 ADB，其 PC 指南要求简中，ADB 的英文识别覆盖部分任务。NKAS 自带常驻调度。需要在同一个 AUTO-MAS 队列中逐项选任务时，使用上面的 MDA 托管。[NKAS 发布页](https://github.com/megumiss/NIKKEAutoScript/releases/tag/v1.2.0) · [Windows 配置](https://github.com/megumiss/NIKKEAutoScript/wiki/Quick-Installation-Guide.zh-CN) · [模拟器配置](https://github.com/megumiss/NIKKEAutoScript/wiki/Usage-Guide-Emulator.zh-CN)
 
 ## 学园偶像大师
 
@@ -38,3 +40,20 @@ git pull --ff-only
 
 2. 导入 `dotabyss AUTO-MAS project:` 对应的适配器目录。控制器选「DMM 游戏窗口」，资源选「日文 DMM 客户端」。「PC 游戏启动方式」选「由脚本自身控制游戏」，运行前打开游戏并保持窗口可见。在「基本信息」打开「跟随来源目录」，之后更新 Hub 或重跑安装脚本时可以点「立即同步」。
 3. 先单独运行「领取礼物」或「领取任务奖励」，也可以应用「基础领奖」预设。势力任务、迎击战和探索队任务依赖于模型识别当前画面，先分别验证再放进定时队列。「领取挂机奖励」可能确认装备自动分解，按游戏中已有的分解设置执行。[上游日常任务定义](https://github.com/Azure-Sora/MaaDotAbyss/blob/v0.2.0/tasks/daily.yaml)
+
+## 可选的 UU 加速
+
+在 Windows 安装并登录**网易 UU 客户端**。先在 UU 为每款游戏手动成功加速一次，记下搜索结果中的完整卡片名称。按你用的客户端选 UU 条目，例如 NIKKE 国际服电脑端、模拟器或日服 DMM。Dot Abyss 请在你自己的 UU 游戏库里确认有对应的 DMM 条目并能正常加速。[UU 加速和游戏启动说明](https://uu.baike.netease.com/zhinan/53.html)
+
+在 Hub 仓库根目录运行，也可以只列需要 UU 的游戏。自定义过 `-ToolsRoot` 时沿用原值。
+
+```powershell
+git pull --ff-only
+& .\scripts\setup-windows.ps1 -Games nikke,gakumas,dotabyss -WithUu
+```
+
+1. 在 AUTO-MAS 新建「MFW 脚本」，导入每款游戏输出中 `UU AUTO-MAS project:` 后面的目录。按上文选择控制器和资源、添加账号，再把这份托管放进现有队列。如果这款游戏已有普通托管，从队列里把该项换成含 UU 的托管即可。
+2. 打开该账号的「任务队列」。先添加需要的日常或应用预设，再点「添加任务」，搜索并勾选「切换网易 UU 加速」。填写 UU 中的游戏全名。要强制核对区服时，填写 UU 显示的区服文字。UU 已打开时可留空程序路径；需要由脚本打开，且默认安装位置未找到时，再填 `uu.exe` 或 `uu_launcher.exe` 的完整路径。若还有别的启动前任务，把 UU 放在最前面。[AUTO-MAS 前置任务的执行顺序](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/app/task/MaaFW/tools/embedded/runner_task.py#L873-L889)
+3. 解锁桌面并试跑该托管。脚本会打开或接管 UU，必要时停止旧加速，确认目标游戏显示加速状态后再继续。无法确认时，本次运行在前置任务处失败，可到历史记录查看原因。DMM 仍按上文通过官方启动器进入游戏，前置任务执行时保持 UU 窗口可见。
+
+取消勾选「切换网易 UU 加速」即可跳过这一步。含 UU 的托管用本地项目，更新时重跑包含 `-WithUu` 的安装命令，然后在托管「基本信息」开启「跟随来源目录」并点「立即同步」。

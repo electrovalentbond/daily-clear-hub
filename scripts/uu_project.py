@@ -1,0 +1,107 @@
+"""Add the selectable UU pretask to a copy of a MaaFW project."""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+from pathlib import Path
+
+
+TASK_NAME = "DailyClearHubUuBoost"
+OPTION_NAME = "DailyClearHubUuSettings"
+OPTIONS_ENV = "DAILY_CLEAR_HUB_UU_OPTIONS"
+PROJECTS = {
+    "nikke": ("DailyClearHubUuNikke", "NIKKE 国际服（含 UU）"),
+    "gakumas": ("DailyClearHubUuGakumas", "学园偶像大师（含 UU）"),
+    "dotabyss": ("DailyClearHubUuDotAbyss", "Dot Abyss（含 UU）"),
+}
+
+
+def write_json(path: Path, value: dict) -> None:
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    temporary.replace(path)
+
+
+def prepare(game: str, source: Path, destination: Path, python: Path, runner: Path) -> None:
+    if source.resolve() == destination.resolve():
+        raise ValueError("UU pretask must be added to a separate project copy")
+    interface = json.loads(source.read_text(encoding="utf-8-sig"))
+    interface["name"], interface["label"] = PROJECTS[game]
+    # The local project has a different task list and must have its own AUTO-MAS payload.
+    for field in ("github", "mirrorchyan_rid", "mirrorchyanRid"):
+        interface.pop(field, None)
+    pretasks = interface.get("pretask") or []
+    if isinstance(pretasks, dict):
+        pretasks = [pretasks]
+    interface["pretask"] = [
+        {
+            "name": TASK_NAME,
+            "label": "切换网易 UU 加速",
+            "description": "确认所填游戏已加速后再连接游戏。请输入 UU 界面显示的完整名称。",
+            "exec": "powershell",
+            "args": [
+                "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass",
+                "-File", "{PROJECT_DIR}/daily-clear-uu.ps1",
+            ],
+            "option": [OPTION_NAME],
+        },
+        *(task for task in pretasks if task.get("name") != TASK_NAME),
+    ]
+    interface.setdefault("option", {})[OPTION_NAME] = {
+        "type": "input",
+        "label": "UU 加速设置",
+        "inputs": [
+            {"name": "game", "label": "UU 中的游戏全名", "default": ""},
+            {"name": "region", "label": "区服选项（可留空）", "default": ""},
+            {"name": "exe", "label": "UU 程序路径（可留空）", "default": ""},
+        ],
+    }
+    write_json(destination.with_name("daily-clear-uu.json"), {"python": str(python), "runner": str(runner)})
+    write_json(destination, interface)
+
+
+def boost_arguments(raw_options: str) -> list[str]:
+    options = json.loads(raw_options)
+    settings = options.get(OPTION_NAME) if isinstance(options, dict) else None
+    if not isinstance(settings, dict):
+        raise ValueError("请在「切换网易 UU 加速」里填写 UU 中的游戏全名")
+    game = settings.get("game", "")
+    if not isinstance(game, str) or not game.strip():
+        raise ValueError("请在「切换网易 UU 加速」里填写 UU 中的游戏全名")
+    arguments = [f"--game={game.strip()}"]
+    for field in ("region", "exe"):
+        value = settings.get(field, "")
+        if isinstance(value, str) and value.strip():
+            arguments.append(f"--{field}={value.strip()}")
+    return arguments
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    subcommands = parser.add_subparsers(dest="command", required=True)
+    install = subcommands.add_parser("prepare")
+    install.add_argument("game", choices=PROJECTS)
+    install.add_argument("source", type=Path)
+    install.add_argument("destination", type=Path)
+    install.add_argument("python", type=Path)
+    install.add_argument("runner", type=Path)
+    subcommands.add_parser("pretask")
+    args = parser.parse_args()
+    if args.command == "prepare":
+        prepare(args.game, args.source, args.destination, args.python, args.runner)
+        return 0
+    try:
+        options = boost_arguments(os.environ.get(OPTIONS_ENV) or "{}")
+    except (ValueError, TypeError) as exc:
+        print(f"UU 前置任务失败：{exc}", flush=True)
+        return 1
+
+    from uu_boost import main as boost
+
+    return boost(options)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

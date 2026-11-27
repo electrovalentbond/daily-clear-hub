@@ -73,6 +73,7 @@ git pull --ff-only
 - **崩坏学园 2** 导入 MaaBH2，选「雷电模拟器」和「默认」，绑定已登录的模拟器实例并填写对应渠道包名。B 服用 `com.miHoYo.HSoDv2BiliBiliRelease`。AUTO-MAS 会启动绑定的游戏，任务队列可以从「10. 每日每周任务奖励领取」开始。[MaaBH2 设置](maabh2.md)
 - **公主连结 B 服** 导入 `pcr AUTO-MAS project:` 后面的目录，选「安卓模拟器」和「哔哩哔哩国服」，绑定已登录的模拟器实例。「游戏包名」留空即可，pcr-script 会启动 B 服客户端。在账号的任务队列应用「基础日常」预设，或逐项添加任务。取消某项勾选即可跳过。日程表的扫荡项目和资源用量沿用游戏内设置。[公主连结配置](pcr-upstream.md) · [任务与美食嘉年华领奖](pcr-upstream.md#领取任务奖励和美食嘉年华奖励) · [究极炼成领奖](pcr-upstream.md#领取究极炼成奖励) · [新剧情活动扫荡](pcr-upstream.md#活动困难关卡扫荡) · [复刻困难与 VH 扫荡](pcr-upstream.md#复刻活动日常扫荡)
 - **NIKKE 国际服、学园偶像大师和 Dot Abyss** 分别导入 MDA、MaaGakumasu 和 `dotabyss AUTO-MAS project:` 对应目录。支持的客户端、语言与首批任务见[新增 MFW 项目配置](new-mfw-games.md)。
+- **网易 UU 加速** 可为上述三款游戏分别添加「切换网易 UU 加速」的运行前设置。[安装和配置](new-mfw-games.md#可选的-uu-加速)
 
 ### 三款专项游戏
 

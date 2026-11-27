@@ -5,14 +5,20 @@ param(
     [ValidateSet('honkai3', 'starrail', 'zzz', 'genshin', 'pcr', 'bhxy2', 'endfield', 'nikke', 'gakumas', 'dotabyss')]
     [string[]]$Games = @('honkai3', 'starrail', 'zzz', 'genshin', 'pcr', 'bhxy2', 'endfield'),
     [ValidateNotNullOrEmpty()]
-    [string]$ToolsRoot = (Join-Path $env:USERPROFILE 'Games\DailyAutomation')
+    [string]$ToolsRoot = (Join-Path $env:USERPROFILE 'Games\DailyAutomation'),
+    [switch]$WithUu
 )
 
 $ErrorActionPreference = 'Stop'
 $HubRoot = Split-Path -Parent $PSScriptRoot
 $ToolsRoot = $ExecutionContext.SessionState.Path.GetUnresolvedProviderPathFromPSPath($ToolsRoot)
 $Downloads = Join-Path $ToolsRoot 'Downloads'
+$UuGames = @('nikke', 'gakumas', 'dotabyss')
+if ($WithUu -and -not $PSBoundParameters.ContainsKey('Games')) { $Games = $UuGames }
 $Games = @($Games | ForEach-Object { $_.ToLowerInvariant() } | Select-Object -Unique)
+if ($WithUu -and -not ($Games | Where-Object { $_ -in $UuGames })) {
+    throw '-WithUu supports nikke, gakumas and dotabyss.'
+}
 
 function Invoke-CheckedNative([string]$Command, [string[]]$Arguments) {
     & $Command @Arguments
@@ -251,6 +257,46 @@ function Prepare-Pcr {
     Write-Host "pcr AUTO-MAS project: $Adapter"
 }
 
+function Install-UuRuntime {
+    [IO.Directory]::CreateDirectory($UuRoot) | Out-Null
+    $Python = Get-ProjectPython $UuRoot
+    Invoke-CheckedNative $Python @(
+        '-m', 'pip', 'install', '--disable-pip-version-check', '-r', (Join-Path $PSScriptRoot 'uu-requirements.txt')
+    ) | Out-Host
+    foreach ($Item in @('uu_project.py', 'uu_boost.py')) {
+        Copy-Item -LiteralPath (Join-Path $PSScriptRoot $Item) -Destination $UuRoot -Force
+    }
+    return $Python
+}
+
+function Install-UuProject([string]$Game, [string]$Interface, [string]$Folder) {
+    $Source = Split-Path -Parent $Interface
+    $Target = Join-Path $ToolsRoot "$Folder-UU"
+    $Marker = Join-Path $UuRoot "$Folder.copy.sha256"
+    $Fingerprint = (Get-FileHash -LiteralPath $Interface -Algorithm SHA256).Hash
+    $CopiedFingerprint = if (Test-Path -LiteralPath $Marker -PathType Leaf) {
+        [IO.File]::ReadAllText($Marker)
+    }
+    if ($Game -eq 'dotabyss' -or
+        -not (Test-Path -LiteralPath (Join-Path $Target 'interface.json')) -or
+        $CopiedFingerprint -ne $Fingerprint) {
+        [IO.Directory]::CreateDirectory($Target) | Out-Null
+        foreach ($Item in Get-ChildItem -LiteralPath $Source -Force) {
+            if ($Item.FullName -ne $Interface) {
+                Copy-Item -LiteralPath $Item.FullName -Destination $Target -Recurse -Force
+            }
+        }
+    }
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'uu-before.ps1') `
+        -Destination (Join-Path $Target 'daily-clear-uu.ps1') -Force
+    Invoke-CheckedNative $HubPython @(
+        '-X', 'utf8', (Join-Path $PSScriptRoot 'uu_project.py'), 'prepare', $Game, $Interface,
+        (Join-Path $Target 'interface.json'), $UuPython, (Join-Path $UuRoot 'uu_project.py')
+    )
+    [IO.File]::WriteAllText($Marker, $Fingerprint)
+    Write-Host ("${Game} UU AUTO-MAS project: " + $Target)
+}
+
 function Prepare-DotAbyss {
     $Project = Split-Path -Parent (Install-ZipRelease $Releases.dotabyss)
     $Python = Get-ProjectPython $Project
@@ -271,6 +317,7 @@ function Prepare-DotAbyss {
     Write-Host "dotabyss project: $Project"
     Write-Host "dotabyss Python: $Python"
     Write-Host "dotabyss AUTO-MAS project: $Adapter"
+    if ($WithUu) { Install-UuProject 'dotabyss' (Join-Path $Adapter 'interface.json') 'dotabyss-automas' }
 }
 
 [IO.Directory]::CreateDirectory($ToolsRoot) | Out-Null
@@ -286,6 +333,10 @@ try {
 
     $MasExe = Install-ZipRelease $Releases.automas
     Write-Host "AUTO-MAS: $MasExe"
+    if ($WithUu) {
+        $UuRoot = Join-Path $ToolsRoot 'uu-automas'
+        $UuPython = Install-UuRuntime
+    }
     foreach ($Game in $Games) {
         switch ($Game) {
             'genshin' { Install-BetterGI }
@@ -297,6 +348,7 @@ try {
                     Invoke-CheckedNative $HubPython @((Join-Path $PSScriptRoot 'patch_maabh2.py'), $Entry)
                 }
                 Write-Host ("${Game}: " + (Split-Path -Parent $Entry))
+                if ($WithUu -and $Game -in $UuGames) { Install-UuProject $Game $Entry $Releases[$Game].Folder }
             }
         }
     }

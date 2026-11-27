@@ -66,6 +66,19 @@ class AutoMasDiscoveryTest(unittest.TestCase):
             result = discover_automas(36163, ("dotabyss",))
         self.assertEqual((AutoMasProfile(profiles[0][0], profiles[0][2]),), result["dotabyss"])
 
+    def test_uu_variants_resolve_to_the_same_game_ids_as_the_standard_profiles(self):
+        profiles = tuple(_profile(i, "MaaFWConfig", game) for i, game in enumerate(
+            ("nikke", "gakumas", "dotabyss"), start=1,
+        ))
+        project_names = dict(zip(
+            (row[0] for row in profiles),
+            ("DailyClearHubUuNikke", "DailyClearHubUuGakumas", "DailyClearHubUuDotAbyss"),
+        ))
+        with patch("core.automas_backend._request", side_effect=_upstream(profiles, project_names)):
+            result = discover_automas(36163, ("nikke", "gakumas", "dotabyss"))
+        for script_id, _, game, _ in profiles:
+            self.assertEqual((AutoMasProfile(script_id, game),), result[game])
+
     def test_mfw_fork_with_spoofed_name_does_not_match(self):
         profiles = (
             _profile(1, "MaaFWConfig", "MaaBH2", "https://github.com/freeze-12/MaaBH2-fork"),
