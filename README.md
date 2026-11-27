@@ -17,7 +17,7 @@
 
 打开 AUTO-MAS，按 [Windows 手册](docs/windows.md)配置各款游戏的客户端或模拟器和任务。在「调度队列」创建队列并添加托管，然后在「调度中心」选择队列，点击「开始执行」。
 
-加装 NIKKE 国际服、学园偶像大师和 Dot Abyss 时，运行 `& .\scripts\setup-windows.ps1 -Games nikke,gakumas,dotabyss`，再将新托管加入已有队列。[三款游戏的配置步骤](docs/new-mfw-games.md)
+加装 NIKKE 国际服、学园偶像大师和 Dot Abyss 时，运行 `& .\scripts\setup-windows.ps1 -Games nikke,gakumas,dotabyss`。NIKKE 的 NKAS 托管会自动注册，日常从账号的「通用配置」打开 NKAS 网页逐项设置。[三款游戏的配置步骤](docs/new-mfw-games.md)
 
 要在上述三款游戏执行前自动切换网易 UU，可在安装命令加 `-WithUu`，再按托管类型启用。[UU 加速配置](docs/new-mfw-games.md#可选的-uu-加速)
 

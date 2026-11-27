@@ -3,14 +3,19 @@
 from __future__ import annotations
 
 import argparse
+import http.client
 import json
 import os
+import socket
 import subprocess
 import sys
+import time
+import webbrowser
 from contextlib import contextmanager
 from datetime import datetime
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from urllib.parse import quote
 
 
 ROOT = Path(__file__).resolve().parent
@@ -93,10 +98,74 @@ def run_nkas(upstream: Path, profile: str, log) -> bool:
                     return code == 0 and terminal in (["complete"], ["already_complete"])
 
 
+def load_settings() -> tuple[dict, Path, str]:
+    settings = json.loads((ROOT / "nikke.json").read_text(encoding="utf-8-sig"))
+    local = json.loads((ROOT / "local.json").read_text(encoding="utf-8-sig"))
+    upstream = Path(local["nkas_root"])
+    profile = settings.get("profile", "nkas")
+    if not isinstance(profile, str) or not profile.strip() or any(
+        character in profile for character in '<>:"/\\|?*'
+    ) or profile in (".", "..", "template"):
+        raise ValueError("nikke.json 的 profile 应为 NKAS 中已保存的实例名")
+    return settings, upstream, profile
+
+
+def wait_for_config_ui(process: subprocess.Popen, port: int) -> None:
+    deadline = time.monotonic() + 120
+    while time.monotonic() < deadline and process.poll() is None:
+        connection = http.client.HTTPConnection("127.0.0.1", port, timeout=1)
+        try:
+            connection.request("GET", "/app/")
+            if connection.getresponse().status in (200, 302, 307, 401, 403):
+                return
+        except (OSError, http.client.HTTPException):
+            pass
+        finally:
+            connection.close()
+        time.sleep(0.5)
+    raise ValueError("NKAS 配置页启动失败，请查看配置会话日志")
+
+
+def configure() -> int:
+    _, upstream, profile = load_settings()
+    python = upstream / "toolkit" / "python.exe"
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        port = listener.getsockname()[1]
+    command = [
+        str(python), "-X", "utf8", "-u", str(ROOT / "config_ui.py"),
+        "--host", "127.0.0.1", "--port", str(port),
+    ]
+    with run_lock(), (ROOT / "logs" / "configure.log").open("w", encoding="utf-8") as log:
+        process = subprocess.Popen(command, cwd=upstream, stdin=subprocess.DEVNULL, stdout=log, stderr=subprocess.STDOUT)
+        try:
+            wait_for_config_ui(process, port)
+            url = f"http://127.0.0.1:{port}/app/"
+            if (upstream / "config" / f"{profile}.json").is_file():
+                url += f"#/i/{quote(profile, safe='')}/schedule"
+            print(f"NKAS 配置页：{url}", flush=True)
+            print(f"NKAS 配置页：{url}", file=log, flush=True)
+            webbrowser.open(url)
+            return process.wait()
+        finally:
+            if process.poll() is None:
+                process.terminate()
+                process.wait()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--uu", action="store_true")
+    parser.add_argument("--configure", action="store_true")
     args = parser.parse_args()
+    if args.configure:
+        try:
+            if os.name != "nt":
+                raise ValueError("NKAS 托管需要 Windows")
+            return configure()
+        except (AttributeError, KeyError, OSError, TypeError, ValueError) as exc:
+            print(exc, file=sys.stderr, flush=True)
+            return 1
     started = datetime.now()
     path = ROOT / "logs" / f"run-{started:%Y%m%d-%H%M%S-%f}.log"
     with path.open("x", encoding="utf-8", buffering=1) as stream:
@@ -108,14 +177,7 @@ def main() -> int:
             if os.name != "nt":
                 raise ValueError("NKAS 托管需要 Windows")
             with run_lock():
-                settings = json.loads((ROOT / "nikke.json").read_text(encoding="utf-8-sig"))
-                local = json.loads((ROOT / "local.json").read_text(encoding="utf-8-sig"))
-                upstream = Path(local["nkas_root"])
-                profile = settings.get("profile", "nkas")
-                if not isinstance(profile, str) or not profile.strip() or any(
-                    character in profile for character in '<>:"/\\|?*'
-                ) or profile in (".", "..", "template"):
-                    raise ValueError("nikke.json 的 profile 应为 NKAS 中已保存的实例名")
+                settings, upstream, profile = load_settings()
                 if not (upstream / "config" / f"{profile}.json").is_file():
                     raise ValueError("找不到该 NKAS 实例的配置，请先在 NKAS 保存一次")
                 if args.uu:

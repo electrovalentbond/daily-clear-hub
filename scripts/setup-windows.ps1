@@ -6,6 +6,8 @@ param(
     [string[]]$Games = @('honkai3', 'starrail', 'zzz', 'genshin', 'pcr', 'bhxy2', 'endfield'),
     [ValidateNotNullOrEmpty()]
     [string]$ToolsRoot = (Join-Path $env:USERPROFILE 'Games\DailyAutomation'),
+    [ValidateRange(1, 65535)]
+    [int]$AutoMasPort = $(if ($env:AUTO_MAS_HTTP_PORT) { $env:AUTO_MAS_HTTP_PORT } else { 36163 }),
     [switch]$WithUu
 )
 
@@ -288,7 +290,7 @@ function Prepare-Nkas {
     $Logs = Join-Path $Adapter 'logs'
     [IO.Directory]::CreateDirectory($Logs) | Out-Null
     $Python = Get-ProjectPython $Adapter
-    foreach ($Item in @('run.py', 'run_once.py')) {
+    foreach ($Item in @('run.py', 'run_once.py', 'config_ui.py')) {
         Copy-Item -LiteralPath (Join-Path $AdapterSource $Item) -Destination $Adapter -Force
     }
     $LocalFile = Join-Path $Adapter 'local.json'
@@ -307,6 +309,29 @@ function Prepare-Nkas {
     Write-Host "nikke AUTO-MAS adapter: $Adapter"
     Write-Host "nikke adapter Python: $Python"
     Write-Host "nikke adapter settings: $Settings"
+}
+
+function Register-Nkas([string]$MasExe) {
+    $ProcessName = [IO.Path]::GetFileNameWithoutExtension($MasExe)
+    if (-not (Get-Process -Name $ProcessName -ErrorAction SilentlyContinue)) {
+        $PreviousPort = $env:AUTO_MAS_HTTP_PORT
+        try {
+            $env:AUTO_MAS_HTTP_PORT = [string]$AutoMasPort
+            Start-Process -FilePath $MasExe -WorkingDirectory (Split-Path -Parent $MasExe)
+        } finally {
+            $env:AUTO_MAS_HTTP_PORT = $PreviousPort
+        }
+    }
+
+    $Arguments = @('-m', 'scripts.register_nkas', '--tools-root', $ToolsRoot,
+        '--automas-port', [string]$AutoMasPort, '--wait-seconds', '240')
+    if ($WithUu) { $Arguments += '--with-uu' }
+    Push-Location $HubRoot
+    try {
+        Invoke-CheckedNative $HubPython $Arguments
+    } finally {
+        Pop-Location
+    }
 }
 
 function Install-UuProject([string]$Game, [string]$Interface, [string]$Folder) {
@@ -393,6 +418,7 @@ try {
             }
         }
     }
+    if ('nikke' -in $Games) { Register-Nkas $MasExe }
 } finally {
     $SetupLock.Dispose()
 }

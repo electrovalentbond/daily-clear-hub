@@ -76,7 +76,7 @@ git pull --ff-only
 
 ### NIKKE 国际服
 
-通过通用托管运行 NKAS 到期任务。在 NKAS 保存国际服实例后，运行 `& .\.venv\Scripts\python.exe -m scripts.register_nkas`，再把 **NIKKE 国际服（NKAS）** 加进原队列。[NKAS 配置](new-mfw-games.md#nikke-国际服)
+`setup-windows.ps1 -Games nikke` 会安装 NKAS 并注册 **NIKKE 国际服（NKAS）**。在账号右上角点「通用配置」，打开 NKAS 网页选择国际服实例和日常任务，再把托管加进原队列。[NKAS 配置](new-mfw-games.md#nikke-国际服)
 
 NIKKE、学园偶像大师和 Dot Abyss 都可在运行前切换网易 UU。[安装和配置](new-mfw-games.md#可选的-uu-加速)
 

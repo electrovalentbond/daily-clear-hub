@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import argparse
+import shlex
 import sys
+import time
 from pathlib import Path
 
 from core.auto_setup import DEFAULT_TOOLS_ROOT
 from core.automas_backend import (
     DEFAULT_PORT, NKAS_ADAPTER, NKAS_FAILURE, NKAS_SUCCESS,
-    _check_success, _request, _validate_port, discover_automas,
+    _check_health, _check_success, _request, _validate_port, discover_automas,
 )
 
 
@@ -18,16 +20,15 @@ PROFILE_NAME = "NIKKE 国际服（NKAS）"
 
 def settings_for(adapter: Path, with_uu: bool) -> dict:
     runner = adapter / "run.py"
-    arguments = f'-X utf8 -u "{runner.as_posix()}"'
-    if with_uu:
-        arguments += " --uu"
+    launcher = f'-X utf8 -u "{runner.as_posix()}"'
+    run_arguments = f"{launcher}{' --uu' if with_uu else ''}"
     return {
         "Info": {"Name": PROFILE_NAME, "RootPath": str(adapter)},
         "Game": {"Enabled": False},
         "Run": {"RunTimeLimit": 45, "RunTimesLimit": 1},
         "Script": {
             "ScriptPath": str(adapter / ".venv" / "Scripts" / "python.exe"),
-            "Arguments": arguments,
+            "Arguments": f"{run_arguments}|{launcher} --configure",
             "IfTrackProcess": False,
             "ConfigPath": str(adapter / "nikke.json"),
             "ConfigPathMode": "File",
@@ -45,14 +46,30 @@ def settings_for(adapter: Path, with_uu: bool) -> dict:
     }
 
 
-def register(tools_root: Path, port: int, with_uu: bool) -> str:
+def wait_for_automas(port: int, timeout: int) -> None:
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            _check_health(port)
+        except ValueError as exc:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise ValueError(
+                    f"AUTO-MAS（端口 {port}）尚未就绪。请等它完成首次初始化后重跑安装命令。"
+                ) from exc
+            time.sleep(min(1, remaining))
+        else:
+            return
+
+
+def register(tools_root: Path, port: int, with_uu: bool | None) -> str:
     port = _validate_port(port)
     adapter = tools_root / NKAS_ADAPTER
-    settings = settings_for(adapter, with_uu)
+    settings = settings_for(adapter, bool(with_uu))
     script = settings["Script"]
     paths = (
         script["ScriptPath"], script["ConfigPath"], script["LogPath"],
-        adapter / "local.json", adapter / "run.py", adapter / "run_once.py",
+        adapter / "local.json", adapter / "run.py", adapter / "run_once.py", adapter / "config_ui.py",
     )
     if not all(Path(path).is_file() for path in paths):
         raise ValueError("NKAS 托管尚未准备好，请先运行 setup-windows.ps1 -Games nikke")
@@ -70,7 +87,14 @@ def register(tools_root: Path, port: int, with_uu: bool) -> str:
         _check_success(response, label)
         return response
 
-    uid = existing[0].script_id if existing else request("add", {"type": "General"}, "创建 NKAS 托管")["scriptId"]
+    if existing:
+        uid = existing[0].script_id
+        if with_uu is None:
+            current = request("get", {"scriptId": uid}, "读取 NKAS 托管")["data"][uid]
+            previous_args = current["Script"]["Arguments"].split("|", 1)[0]
+            settings = settings_for(adapter, "--uu" in shlex.split(previous_args))
+    else:
+        uid = request("add", {"type": "General"}, "创建 NKAS 托管")["scriptId"]
     request("update", {"scriptId": uid, "data": settings}, "保存 NKAS 托管")
     users = request("user/get", {"scriptId": uid}, "读取 NKAS 账号")["data"]
     if not users:
@@ -86,9 +110,13 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="为本机 AUTO-MAS 注册 NIKKE 国际服 NKAS 托管")
     parser.add_argument("--tools-root", type=Path, default=DEFAULT_TOOLS_ROOT)
     parser.add_argument("--automas-port", type=int, default=DEFAULT_PORT)
-    parser.add_argument("--with-uu", action="store_true")
+    parser.add_argument("--with-uu", action="store_true", default=None)
+    parser.add_argument("--wait-seconds", type=int, choices=range(0, 601), metavar="0–600", default=0)
     args = parser.parse_args()
     try:
+        if args.wait_seconds:
+            print("等待 AUTO-MAS 初始化，然后自动注册 NKAS 托管…", flush=True)
+            wait_for_automas(_validate_port(args.automas_port), args.wait_seconds)
         uid = register(args.tools_root.resolve(), args.automas_port, args.with_uu)
     except (OSError, KeyError, ValueError) as exc:
         print(exc, file=sys.stderr)

@@ -3,11 +3,12 @@ import re
 import shlex
 import tempfile
 import unittest
+from contextlib import nullcontext
 from pathlib import Path
 from unittest.mock import Mock, patch
 
 from core.automas_backend import NKAS_FAILURE, NKAS_SUCCESS
-from scripts.register_nkas import register, settings_for
+from scripts.register_nkas import register, settings_for, wait_for_automas
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -54,7 +55,7 @@ class TestNkasIntegration(unittest.TestCase):
             adapter = root / "nikke-automas"
             for relative in (
                 "nikke-automas/.venv/Scripts/python.exe", "nikke-automas/nikke.json",
-                "nikke-automas/local.json", "nikke-automas/run.py", "nikke-automas/run_once.py",
+                "nikke-automas/local.json", "nikke-automas/run.py", "nikke-automas/run_once.py", "nikke-automas/config_ui.py",
                 "nikke-automas/logs/run-20000101-000000-000000.log", "uu-automas/uu_boost.py",
                 "uu-automas/.venv/Scripts/python.exe",
             ):
@@ -71,9 +72,48 @@ class TestNkasIntegration(unittest.TestCase):
             settings = request.call_args_list[1].args[2]["data"]
             self.assertFalse(settings["Game"]["Enabled"])
             self.assertEqual(settings["Script"]["SuccessLog"], NKAS_SUCCESS)
-            self.assertEqual(shlex.split(settings["Script"]["Arguments"])[-2:], [(adapter / "run.py").as_posix(), "--uu"])
+            run_args, config_args = settings["Script"]["Arguments"].split("|")
+            self.assertEqual(shlex.split(run_args)[-2:], [(adapter / "run.py").as_posix(), "--uu"])
+            self.assertEqual(shlex.split(config_args)[-2:], [(adapter / "run.py").as_posix(), "--configure"])
             self.assertEqual(request.call_args_list[-1].args[2]["data"]["Info"]["Base"], "native")
             self.assertNotIn("--uu", settings_for(adapter, False)["Script"]["Arguments"])
+
+    def test_setup_waits_for_automas_health_before_registering(self):
+        with patch("scripts.register_nkas._check_health", side_effect=[ValueError("starting"), None]) as health, patch(
+            "scripts.register_nkas.time.sleep",
+        ) as sleep:
+            wait_for_automas(36163, 4)
+        self.assertEqual(health.call_count, 2)
+        sleep.assert_called_once()
+
+        with patch("scripts.register_nkas._check_health", side_effect=ValueError("starting")):
+            with self.assertRaisesRegex(ValueError, "尚未就绪"):
+                wait_for_automas(36163, 0)
+
+    def test_configure_opens_saved_instance_task_settings(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            project = root / "NKAS"
+            (root / "logs").mkdir()
+            (project / "config").mkdir(parents=True)
+            (project / "config" / "日常.json").touch()
+            process = Mock()
+            process.wait.return_value = 0
+            process.poll.return_value = 0
+            with (
+                patch.object(runner, "ROOT", root),
+                patch.object(runner, "load_settings", return_value=({}, project, "日常")),
+                patch.object(runner, "run_lock", side_effect=nullcontext),
+                patch.object(runner.subprocess, "Popen", return_value=process) as popen,
+                patch.object(runner, "wait_for_config_ui") as wait,
+                patch.object(runner.webbrowser, "open") as browser,
+            ):
+                self.assertEqual(runner.configure(), 0)
+
+            port = wait.call_args.args[1]
+            self.assertEqual(popen.call_args.args[0][-4:], ["--host", "127.0.0.1", "--port", str(port)])
+            self.assertEqual(popen.call_args.kwargs["cwd"], project)
+            browser.assert_called_once_with(f"http://127.0.0.1:{port}/app/#/i/%E6%97%A5%E5%B8%B8/schedule")
 
     def test_result_markers_are_matched_on_current_log_lines_only(self):
         timestamp = "2026-11-27 15:10:09.987654 "
