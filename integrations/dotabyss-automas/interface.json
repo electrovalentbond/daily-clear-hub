@@ -1,0 +1,89 @@
+{
+    "interface_version": 2,
+    "name": "DailyClearDotAbyss",
+    "label": "Dot Abyss（像素深渊）",
+    "version": "1.0.0",
+    "description": "使用已启动的日文 DMM 版ドットアビスX，游戏窗口设为 1280×720。先在 MaaDotAbyss 配好支持图片输入的模型。",
+    "controller": [
+        {
+            "name": "Win32Front",
+            "label": "DMM 游戏窗口",
+            "type": "Win32",
+            "display_raw": true,
+            "win32": {
+                "class_regex": "^UnityWndClass$",
+                "window_regex": "^ドットアビスX$",
+                "screencap": "FramePool",
+                "mouse": "Seize",
+                "keyboard": "Seize"
+            }
+        }
+    ],
+    "resource": [
+        {
+            "name": "DMM",
+            "label": "日文 DMM 客户端",
+            "path": ["{PROJECT_DIR}/resource"]
+        }
+    ],
+    "agent": {
+        "child_exec": "python",
+        "child_args": ["-X", "utf8", "-u", "./agent.py"]
+    },
+    "task": [
+        {
+            "name": "DotAbyssGifts",
+            "label": "领取礼物",
+            "entry": "DotAbyssGifts",
+            "default_check": true,
+            "description": "检查礼物箱并一键领取。"
+        },
+        {
+            "name": "DotAbyssMissions",
+            "label": "领取任务奖励",
+            "entry": "DotAbyssMissions",
+            "default_check": true,
+            "description": "领取已完成的任务奖励。"
+        },
+        {
+            "name": "DotAbyssIdleReward",
+            "label": "领取挂机奖励",
+            "entry": "DotAbyssIdleReward",
+            "description": "领取放置宝箱。上游可能确认装备自动分解，使用前请核对游戏设置。"
+        },
+        {
+            "name": "DotAbyssFreePack",
+            "label": "领取每日免费礼包",
+            "entry": "DotAbyssFreePack",
+            "description": "领取商店里的 0 DMM 点数礼包，首次请监督执行。"
+        },
+        {
+            "name": "DotAbyssForces",
+            "label": "势力任务（实验）",
+            "entry": "DotAbyssForces",
+            "description": "处理今日开放的势力关卡，前台模式用模型看图处理，可能需要手动完成。"
+        },
+        {
+            "name": "DotAbyssIntercept",
+            "label": "迎击战（实验）",
+            "entry": "DotAbyssIntercept",
+            "description": "处理已开放的迎击委托，前台模式用模型看图处理，可能需要手动完成。"
+        },
+        {
+            "name": "DotAbyssExpedition",
+            "label": "探索队任务（实验）",
+            "entry": "DotAbyssExpedition",
+            "description": "处理探索队的免费挑战，前台模式用模型看图处理，可能需要手动完成。"
+        }
+    ],
+    "preset": [
+        {
+            "name": "DotAbyssBasic",
+            "label": "基础领奖",
+            "task": [
+                {"name": "DotAbyssGifts", "enabled": true},
+                {"name": "DotAbyssMissions", "enabled": true}
+            ]
+        }
+    ]
+}

@@ -17,6 +17,9 @@ UPSTREAM_BACKENDS = {
     "pcr": ("pcr_script",),
     "bhxy2": ("automas", "hka"),
     "endfield": ("automas",),
+    "nikke": ("automas",),
+    "gakumas": ("automas",),
+    "dotabyss": ("automas",),
 }
 BACKEND_OPTIONS = {
     "automas": {"automas_port", "script_id", "user_id"},
@@ -100,7 +103,9 @@ def load_hub_config(local_config_path: Path = DEFAULT_LOCAL_CONFIG_PATH) -> HubC
         enabled = options.pop("enabled")
         backend = options.pop("backend")
         timeout = options.pop("timeout_sec")
-        available_backends = ("native", *UPSTREAM_BACKENDS.get(game_id, ()))
+        available_backends = UPSTREAM_BACKENDS.get(game_id, ())
+        if config["backend"] == "native":
+            available_backends = ("native", *available_backends)
         if not isinstance(backend, str) or backend not in available_backends:
             raise ValueError(f"games.{game_id}.backend 应为 {'、'.join(available_backends)}")
         fields = BACKEND_OPTIONS.get(backend, set())

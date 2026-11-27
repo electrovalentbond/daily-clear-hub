@@ -14,12 +14,16 @@ class TestConfigLoader(unittest.TestCase):
             local_path.write_text(yaml_text, encoding="utf-8-sig")
             return load_hub_config(local_path)
 
-    def test_defaults_cover_all_games_with_valid_steps(self):
+    def test_defaults_cover_all_games_and_native_games_have_valid_steps(self):
         hub = self.load_override("")
-        self.assertEqual(7, len(hub.games))
+        automas_only = {"nikke", "gakumas", "dotabyss"}
+        self.assertEqual(10, len(hub.games))
         self.assertEqual((), hub.select([]))
-        self.assertEqual(7, len(hub.select([], include_disabled=True)))
+        self.assertEqual(10, len(hub.select([], include_disabled=True)))
         for game_id, game in hub.games.items():
+            if game_id in automas_only:
+                self.assertEqual("automas", game.backend)
+                continue
             flow = load_flow(game_id)
             self.assertEqual(game_id, flow.game_id)
             self.assertEqual(len(flow.pages), len({page.step_id for page in flow.pages}))
@@ -46,6 +50,7 @@ class TestConfigLoader(unittest.TestCase):
             "games: {pcr: {enabled: 'false'}}",
             "games: {pcr: {timeout_sec: -5}}",
             "games: {pcr: {backend: automas}}",
+            "games: {nikke: {backend: native}}",
             "schedule_order: [pcr, pcr]",
         )
         for example in invalid:

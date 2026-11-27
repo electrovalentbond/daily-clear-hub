@@ -1,0 +1,51 @@
+{
+    "DotAbyssGifts": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearDotAbyss", "custom_action_param": {"task": "claim_gifts_new"}}
+        }
+    },
+    "DotAbyssMissions": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearDotAbyss", "custom_action_param": {"task": "claim_missions"}}
+        }
+    },
+    "DotAbyssIdleReward": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearDotAbyss", "custom_action_param": {"task": "claim_idle_reward"}}
+        }
+    },
+    "DotAbyssFreePack": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearDotAbyss", "custom_action_param": {"task": "daily_pack"}}
+        }
+    },
+    "DotAbyssForces": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearDotAbyss", "custom_action_param": {"task": "adventure_forces"}}
+        }
+    },
+    "DotAbyssIntercept": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearDotAbyss", "custom_action_param": {"task": "adventure_intercept"}}
+        }
+    },
+    "DotAbyssExpedition": {
+        "recognition": "DirectHit",
+        "action": {
+            "type": "Custom",
+            "param": {"custom_action": "DailyClearDotAbyss", "custom_action_param": {"task": "expedition"}}
+        }
+    }
+}

@@ -1,8 +1,9 @@
 # Daily Clear Hub
 
-在 Windows 上用 AUTO-MAS 的同一个队列运行七款游戏。托管里可以选择上游支持的日常和周常，公主连结国服 B 服复用 pcr-script 的识别素材。
+在 Windows 上用 AUTO-MAS 的同一个队列运行多款游戏。托管里可以选择上游支持的日常和周常，公主连结国服 B 服复用 pcr-script 的识别素材。
 
 - [Windows 一次安装与运行手册](docs/windows.md)
+- [NIKKE 国际服、学园偶像大师和 Dot Abyss 配置](docs/new-mfw-games.md)
 - [七款游戏的实现评估与源码依据](docs/implementation-review.md)
 - [内置流程的模板采集说明](assets/README.md)
 
@@ -15,6 +16,8 @@
 ```
 
 打开 AUTO-MAS，按 [Windows 手册](docs/windows.md)配置各款游戏的客户端或模拟器和任务。在「调度队列」创建队列并添加托管，然后在「调度中心」选择队列，点击「开始执行」。
+
+加装 NIKKE 国际服、学园偶像大师和 Dot Abyss 时，运行 `& .\scripts\setup-windows.ps1 -Games nikke,gakumas,dotabyss`，再将新托管加入已有队列。[三款游戏的配置步骤](docs/new-mfw-games.md)
 
 已有的手动 YAML 可以继续使用 `run`。使用 [ok-script](https://github.com/ok-oldking/ok-script) 和本机 COCO 模板时，选择 `backend: native`，用 `gui endfield --debug` 打开单游戏诊断。
 
@@ -30,6 +33,9 @@
 - 公主连结 B 服使用 [pcr-script](https://github.com/Gibberer/pcr-script) 的任务与识别素材，由 Hub 的 MFW 适配器接入 AUTO-MAS。
 - 崩坏学园 2 使用 [MaaBH2](https://github.com/freeze-12/MaaBH2)，也可手动配置独立的 [Honkai2Automation](https://github.com/lolineet/Honkai2Automation) 后端。
 - 明日方舟：终末地使用 [MaaEnd](https://github.com/MaaEnd/MaaEnd)。
+- NIKKE 国际服使用 [MDA](https://github.com/1204244136/MDA) 的简中识别资源。
+- 学园偶像大师使用 [MaaGakumasu](https://github.com/SuperWaterGod/MaaGakumasu)。
+- Dot Abyss 使用 [MaaDotAbyss](https://github.com/Azure-Sora/MaaDotAbyss) 的日文 DMM 流程，由 Hub 的 MFW 适配器接入 AUTO-MAS。
 
 ### 运行框架和依赖
 

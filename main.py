@@ -56,6 +56,8 @@ def main(argv: list[str] | None = None) -> int:
             selected = hub.select(args.games, include_disabled=args.command == "plan")
         if not selected:
             raise ValueError("没有选中游戏。请在本机配置中启用游戏，或在命令后指定游戏 ID")
+        if args.command == "gui" and "platform" not in hub.games[selected[0]].options:
+            raise ValueError("这个游戏通过 AUTO-MAS 运行，请在对应托管的运行日志里查看诊断信息")
         if args.command == "plan":
             for game_id in selected:
                 game = hub.games[game_id]

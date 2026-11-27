@@ -1,4 +1,4 @@
-schedule_order: [honkai3, starrail, zzz, genshin, pcr, bhxy2, endfield]
+schedule_order: [honkai3, starrail, zzz, genshin, pcr, bhxy2, endfield, nikke, gakumas, dotabyss]
 
 games:
   honkai3:
@@ -73,3 +73,18 @@ games:
     templates: assets/local/endfield/coco_annotations.json
     timeout_sec: 420
     steps: [ef_mail, ef_storage, ef_daily, ef_pass]
+  nikke:
+    name: 胜利女神：NIKKE 国际服
+    enabled: false
+    backend: automas
+    timeout_sec: 3600
+  gakumas:
+    name: 学园偶像大师
+    enabled: false
+    backend: automas
+    timeout_sec: 3600
+  dotabyss:
+    name: Dot Abyss
+    enabled: false
+    backend: automas
+    timeout_sec: 3600

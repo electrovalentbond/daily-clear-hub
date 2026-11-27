@@ -1,6 +1,6 @@
 # Windows 安装与运行
 
-在 **AUTO-MAS** 中配置七款游戏，放进同一个调度队列。日常使用时打开「调度中心」，选中队列并点「开始执行」。AUTO-MAS 会依次启动已配置的客户端和模拟器，执行各账号勾选的任务。识别素材随上游项目提供。
+在 **AUTO-MAS** 中把各游戏的托管放进同一个调度队列。日常使用时打开「调度中心」，选中队列并点「开始执行」。AUTO-MAS 会根据托管设置启动客户端、模拟器或接管已打开的游戏窗口。[NIKKE 国际服、学园偶像大师和 Dot Abyss 配置](new-mfw-games.md)
 
 ## 1. 一次准备所选游戏
 
@@ -34,6 +34,12 @@ Set-Location $Hub
 
 可以在 `-Games` 里只列需要的游戏。脚本会校验下载包，并输出 AUTO-MAS 程序和各游戏的项目路径。原神的 BetterGI 安装器需运行一次，可以按脚本输出的建议目录安装。已安装的上游工具可以复用。若当前 PowerShell 的执行策略阻止脚本，可在该窗口运行 `Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass` 后重试。
 
+安装 NIKKE 国际服、学园偶像大师和 Dot Abyss 可以在现有仓库单独执行以下命令。[新增项目的托管配置](new-mfw-games.md)
+
+```powershell
+& .\scripts\setup-windows.ps1 -Games nikke,gakumas,dotabyss
+```
+
 如果需要通过代理下载，在启动脚本前设置当前 PowerShell 窗口的代理。把 `7890` 换成实际 HTTP 或混合代理端口。
 
 ```powershell
@@ -43,7 +49,7 @@ $env:HTTPS_PROXY = 'http://127.0.0.1:7890'
 
 遇到 `curl 56` 等连接中断时，脚本会自动重试。若仍中断，保留工具目录 `Downloads` 里的 `.part` 文件并重跑同一条命令。支持续传的服务器会从已有字节继续。安装包和公主连结的源码 ZIP 通过 SHA-256 校验后才会解压或交给安装器。解压失败后也可直接重跑，脚本会复用 `Downloads` 中已校验的 ZIP。
 
-工具默认放在 `$env:USERPROFILE\Games\DailyAutomation`。以前安装时传过 `-ToolsRoot`，重跑时沿用原值。已有七款的上游工具时，更新仓库后只需重新准备公主连结的 MFW 项目。若安装输出中已出现 `pcr AUTO-MAS project:`，可以直接使用该目录。
+工具默认放在 `$env:USERPROFILE\Games\DailyAutomation`。以前安装时传过 `-ToolsRoot`，重跑时沿用原值。需要重新准备公主连结的 MFW 项目时，单独传入 `pcr`。首次导入使用安装输出中 `pcr AUTO-MAS project:` 后面的目录。
 
 ```powershell
 git pull --ff-only
@@ -54,11 +60,11 @@ git pull --ff-only
 
 打开脚本输出的 `AUTO-MAS.exe`。首次启动需联网准备运行环境。在「托管管理 → 新建托管」为每款游戏选择下列类型。已有托管可直接编辑。每个托管都要「添加账号」并确认账号已启用。单账号可先在游戏中登录一次，使用客户端保存的登录状态。遇到重新登录或验证码提示时，在客户端完成后重试。[AUTO-MAS 使用指南](https://doc.auto-mas.top/docs/user-guide.html)
 
-### 四款 MFW 游戏
+### MFW 游戏
 
 选「MFW脚本」并导入脚本输出、含 `interface.json` 的项目目录。托管页选控制器和资源，等待「运行环境」准备完成。进入账号的「任务队列」点「添加任务」并选择要执行的项目。单项设置的「运行日」限定星期几。希望周常成功一次后本周自动跳过，可以在托管的「运行配置 → 每周完成后跳过」选中对应任务。[MFW 官方指南](https://doc.auto-mas.top/docs/script-guide/maafw.html)
 
-两款模拟器游戏可以共用同一个雷电实例。在左侧「模拟器管理」点「自动搜索模拟器」并导入，再在两个托管的「控制配置」选同一个「模拟器」和「模拟器实例」，各自填写游戏包名。[模拟器管理](https://doc.auto-mas.top/docs/advanced-features/emulator.html)
+公主连结与崩坏学园 2 可以共用雷电实例。在左侧「模拟器管理」点「自动搜索模拟器」并导入，再在两个托管的「控制配置」选同一个「模拟器」和「模拟器实例」，按下方说明设置包名。[模拟器管理](https://doc.auto-mas.top/docs/advanced-features/emulator.html)
 
 调试时想在任务结束或失败后保留模拟器，可以为公主连结和崩坏学园 2 改选已手动打开的「保留雷电」绑定。[设置保留模式](automas-keep-emulator.md)
 
@@ -66,6 +72,7 @@ git pull --ff-only
 - **终末地** 导入 MaaEnd，PC 官服选择 `Win32-Front` 和「官服」。在「PC 游戏启动方式」选择「由脚本自身控制游戏」。打开账号的「任务队列」，添加并启用「🚀启动游戏（PC）」，区服选择「国服 (官方启动器)」，启动器路径先用「自动判断」。它会通过官方启动器打开游戏，再运行日常奖励、清理智和基建等已选任务。前台控制期间保持桌面解锁。[启动器设置及排查](maa-upstream.md#明日方舟终末地)
 - **崩坏学园 2** 导入 MaaBH2，选「雷电模拟器」和「默认」，绑定已登录的模拟器实例并填写对应渠道包名。B 服用 `com.miHoYo.HSoDv2BiliBiliRelease`。AUTO-MAS 会启动绑定的游戏，任务队列可以从「10. 每日每周任务奖励领取」开始。[MaaBH2 设置](maabh2.md)
 - **公主连结 B 服** 导入 `pcr AUTO-MAS project:` 后面的目录，选「安卓模拟器」和「哔哩哔哩国服」，绑定已登录的模拟器实例。「游戏包名」留空即可，pcr-script 会启动 B 服客户端。在账号的任务队列应用「基础日常」预设，或逐项添加任务。取消某项勾选即可跳过。日程表的扫荡项目和资源用量沿用游戏内设置。[公主连结配置](pcr-upstream.md) · [任务与美食嘉年华领奖](pcr-upstream.md#领取任务奖励和美食嘉年华奖励) · [究极炼成领奖](pcr-upstream.md#领取究极炼成奖励) · [新剧情活动扫荡](pcr-upstream.md#活动困难关卡扫荡) · [复刻困难与 VH 扫荡](pcr-upstream.md#复刻活动日常扫荡)
+- **NIKKE 国际服、学园偶像大师和 Dot Abyss** 分别导入 MDA、MaaGakumasu 和 `dotabyss AUTO-MAS project:` 对应目录。支持的客户端、语言与首批任务见[新增 MFW 项目配置](new-mfw-games.md)。
 
 ### 三款专项游戏
 
@@ -78,9 +85,9 @@ git pull --ff-only
 
 ## 3. 在 AUTO-MAS 一键运行
 
-1. 打开「调度队列」，点「新建队列」，命名为 `七款游戏日常`。队列类型选「定时队列」。只想手动启动时，「启动时运行」选「从不」，「定时运行」选「否」，「任务完成后」选「无动作」。
-2. 点「添加任务」并逐个选择七个托管。可拖动调整顺序。每行的「运行周几」决定整个托管在哪些天运行，包含日常的托管可以勾选全周。
-3. 打开「调度中心」，在「选择任务项」下拉框选刚才的队列，确认「本次运行范围」包含要跑的账号，然后点「开始执行」。AUTO-MAS 按顺序执行，并在日志和历史记录展示结果。首次可在每个游戏关闭后测试对应托管能否自动打开游戏，再运行整队列。
+1. 打开「调度队列」，点「新建队列」，命名为 `游戏日常`，或编辑现有队列。队列类型选「定时队列」。只想手动启动时，「启动时运行」选「从不」，「定时运行」选「否」，「任务完成后」选「无动作」。
+2. 点「添加任务」并逐个选择已配置的托管。可拖动调整顺序。每行的「运行周几」决定整个托管在哪些天运行，包含日常的托管可以勾选全周。
+3. 打开「调度中心」，在「选择任务项」下拉框选刚才的队列，确认「本次运行范围」包含要跑的账号，然后点「开始执行」。AUTO-MAS 按顺序执行，并在日志和历史记录展示结果。首次可按各游戏的启动方式单独测试对应托管，再运行整队列。
 
 需要每天定时执行时，把队列的「定时运行」设为「是」，在「定时列表 → 添加定时」设置执行周期和时间，并把该行设为「启用」。AUTO-MAS 需保持运行，桌面类任务需要可用的 Windows 桌面。[AUTO-MAS 队列说明](https://doc.auto-mas.top/docs/task-scheduler.html) · [调度中心启动按钮](https://github.com/AUTO-MAS-Project/AUTO-MAS/blob/v5.8.0/frontend/src/views/scheduler/SchedulerTaskControl.vue#L140-L164)
 
@@ -104,7 +111,7 @@ git pull --ff-only
 $LASTEXITCODE
 ```
 
-`--automas` 根据实时发现的项目选游戏。尚未配置的项目会在输出里显示，显式指定的游戏缺失时改为报错。游戏 ID 为 `honkai3`、`starrail`、`zzz`、`genshin`、`pcr`、`bhxy2`、`endfield`。
+`--automas` 根据实时发现的项目选游戏。尚未配置的项目会在输出里显示，显式指定的游戏缺失时改为报错。游戏 ID 为 `honkai3`、`starrail`、`zzz`、`genshin`、`pcr`、`bhxy2`、`endfield`、`nikke`、`gakumas`、`dotabyss`。
 
 同款游戏有多个托管时，Hub 会列出名称和 ID。可以直接在 AUTO-MAS 整理托管，或在本机 YAML 里只为该游戏填写一个 `script_id`。保留旧配置的有效 ID 或 `user_id` 可继续绑定指定托管或账号。只有改过本机端口才需要传 `--automas-port`，默认为 36163。[查询与手动指定托管 ID](maa-upstream.md#3-查询托管与账号-id)
 

@@ -12,7 +12,7 @@ def _profile(number, script_type, name, repository=None):
     return str(UUID(int=number)), script_type, name, repository
 
 
-def _upstream(profiles):
+def _upstream(profiles, project_names=None):
     def reply(port, endpoint, payload=None, **kwargs):
         if endpoint == "/api/core/health":
             return {"ready": True, "protocol": 1}
@@ -24,15 +24,17 @@ def _upstream(profiles):
                 "data": {script_id: {"Info": {"Name": name}} for script_id, _, name, _ in profiles},
             }
         if endpoint == "/api/scripts/maafw/preview":
-            repo = {script_id: repo for script_id, _, _, repo in profiles}[payload["scriptId"]]
-            return {"code": 200, "status": "success", "data": {"project": {"github": repo}}}
+            script_id = payload["scriptId"]
+            repo = {uid: repo for uid, _, _, repo in profiles}[script_id]
+            project = {"github": repo, "name": (project_names or {}).get(script_id)}
+            return {"code": 200, "status": "success", "data": {"project": project}}
         raise AssertionError((endpoint, payload))
 
     return reply
 
 
 class AutoMasDiscoveryTest(unittest.TestCase):
-    def test_classifies_six_games_from_dedicated_types_and_effective_mfw_projects(self):
+    def test_classifies_games_from_dedicated_types_and_effective_mfw_projects(self):
         targets = {
             "honkai3": _profile(1, "MaaFWConfig", "我的崩三", "https://github.com/miaojiuqing/Maa_bbb/"),
             "starrail": _profile(2, "HSRConfig", "列车"),
@@ -40,6 +42,8 @@ class AutoMasDiscoveryTest(unittest.TestCase):
             "genshin": _profile(4, "BetterGIConfig", "提瓦特"),
             "bhxy2": _profile(5, "MaaFWConfig", "B 服账号", "https://github.com/freeze-12/MaaBH2"),
             "endfield": _profile(6, "MaaEndConfig", "工地"),
+            "nikke": _profile(7, "MaaFWConfig", "前哨基地", "https://github.com/1204244136/MDA"),
+            "gakumas": _profile(8, "MaaFWConfig", "学マス", "https://github.com/SuperWaterGod/MaaGakumasu"),
         }
         with patch("core.automas_backend._request", side_effect=_upstream(tuple(targets.values()))):
             results = discover_automas(36163, tuple(targets))
@@ -50,6 +54,17 @@ class AutoMasDiscoveryTest(unittest.TestCase):
                 self.assertEqual(1, len(results[game_id]))
                 self.assertEqual(script_id, results[game_id][0].script_id)
                 self.assertEqual(name, results[game_id][0].name)
+
+    def test_local_adapter_matches_interface_name_without_a_repository(self):
+        profiles = (
+            _profile(1, "MaaFWConfig", "DMM 日常"),
+            _profile(2, "MaaFWConfig", "同名线上项目", "https://github.com/example/dotabyss"),
+            _profile(3, "MaaFWConfig", "DailyClearDotAbyss"),
+        )
+        project_names = {profiles[0][0]: "DailyClearDotAbyss", profiles[1][0]: "DailyClearDotAbyss"}
+        with patch("core.automas_backend._request", side_effect=_upstream(profiles, project_names)):
+            result = discover_automas(36163, ("dotabyss",))
+        self.assertEqual((AutoMasProfile(profiles[0][0], profiles[0][2]),), result["dotabyss"])
 
     def test_mfw_fork_with_spoofed_name_does_not_match(self):
         profiles = (
