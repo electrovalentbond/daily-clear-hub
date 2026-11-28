@@ -26,97 +26,106 @@
 
 ## 上游项目更新时间
 
-时间徽章读取上游 Git 默认分支最近一次提交的提交者时间，使用 UTC。两个 PySide6 界面组件读取各自的 `PySide6` 分支，Qt 使用其官方 GitHub 镜像。徽章有缓存，点击可查看提交记录。右列是 [Windows 安装脚本](scripts/setup-windows.ps1) 使用的版本或提交。
+[**打开完整可排序图表**](https://electrovalentbond.github.io/daily-clear-hub/)
 
-| 用途 | 上游源码 | Git 最新提交（UTC） | 安装脚本基线 |
-| --- | --- | --- | --- |
-| 统一调度 | [AUTO-MAS](https://github.com/AUTO-MAS-Project/AUTO-MAS) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FAUTO-MAS-Project%2FAUTO-MAS%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/AUTO-MAS-Project/AUTO-MAS/commits) | [`v5.8.0`](https://github.com/AUTO-MAS-Project/AUTO-MAS/releases/tag/v5.8.0) |
-| 崩坏 3 | [Maa_bbb](https://github.com/miaojiuqing/Maa_bbb) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fmiaojiuqing%2FMaa_bbb%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/miaojiuqing/Maa_bbb/commits) | [`v1.13.22`](https://github.com/miaojiuqing/Maa_bbb/releases/tag/v1.13.22) |
-| 崩坏：星穹铁道 | [三月七小助手](https://github.com/moesnow/March7thAssistant) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fmoesnow%2FMarch7thAssistant%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/moesnow/March7thAssistant/commits) | [`v2026.11.22`](https://github.com/moesnow/March7thAssistant/releases/tag/v2026.11.22) |
-| 崩坏：星穹铁道（可选） | [StarRailAssistant](https://github.com/Shasnow/StarRailAssistant) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FShasnow%2FStarRailAssistant%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/Shasnow/StarRailAssistant/commits) | 按需单独配置 |
-| 绝区零 | [绝区零一条龙](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FOneDragon-Anything%2FZenlessZoneZero-OneDragon%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/commits) | [`v2.6.1`](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/releases/tag/v2.6.1) |
-| 原神 | [BetterGI](https://github.com/babalae/better-genshin-impact) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fbabalae%2Fbetter-genshin-impact%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/babalae/better-genshin-impact/commits) | [`0.67.0`](https://github.com/babalae/better-genshin-impact/releases/tag/0.67.0) |
-| 公主连结 B 服 | [pcr-script](https://github.com/Gibberer/pcr-script) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FGibberer%2Fpcr-script%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/Gibberer/pcr-script/commits) | [`d1eb212`](https://github.com/Gibberer/pcr-script/commit/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3) |
-| 崩坏学园 2 | [MaaBH2](https://github.com/freeze-12/MaaBH2) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Ffreeze-12%2FMaaBH2%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/freeze-12/MaaBH2/commits) | [`v0.3.6`](https://github.com/freeze-12/MaaBH2/releases/tag/v0.3.6) |
-| 崩坏学园 2（可选） | [Honkai2Automation](https://github.com/lolineet/Honkai2Automation) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Flolineet%2FHonkai2Automation%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/lolineet/Honkai2Automation/commits) | 按需单独配置 |
-| 明日方舟：终末地 | [MaaEnd](https://github.com/MaaEnd/MaaEnd) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FMaaEnd%2FMaaEnd%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/MaaEnd/MaaEnd/commits) | [`v3.2.0`](https://github.com/MaaEnd/MaaEnd/releases/tag/v3.2.0) |
-| NIKKE 国际服 | [NIKKEAutoScript（NKAS）](https://github.com/megumiss/NIKKEAutoScript) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fmegumiss%2FNIKKEAutoScript%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/megumiss/NIKKEAutoScript/commits) | [`v1.2.0`](https://github.com/megumiss/NIKKEAutoScript/releases/tag/v1.2.0) |
-| 学园偶像大师 | [MaaGakumasu](https://github.com/SuperWaterGod/MaaGakumasu) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FSuperWaterGod%2FMaaGakumasu%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/SuperWaterGod/MaaGakumasu/commits) | [`v1.5.4`](https://github.com/SuperWaterGod/MaaGakumasu/releases/tag/v1.5.4) |
-| Dot Abyss | [MaaDotAbyss](https://github.com/Azure-Sora/MaaDotAbyss) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FAzure-Sora%2FMaaDotAbyss%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/Azure-Sora/MaaDotAbyss/commits) | [`8ec90d7`](https://github.com/Azure-Sora/MaaDotAbyss/commit/8ec90d7b900b9feaaac35cd78498e928e2e2a067) |
+完整列表默认按最近一次 Git 提交时间倒序排列。点击表头可切换顺序，或按项目名称排序。下图预览最近更新的 12 个项目。数据使用 UTC，由 GitHub Actions 每 6 小时检查一次。
+
+[![依赖项目最近提交时间预览，按时间倒序排列](https://electrovalentbond.github.io/daily-clear-hub/preview.svg)](https://electrovalentbond.github.io/daily-clear-hub/)
 
 <details>
-<summary>运行框架和 Python 依赖的提交时间</summary>
+<summary>调度与游戏上游、安装基线</summary>
 
-公主连结与 Dot Abyss 的适配器使用 MaaFramework `5.16.1`。其他 MFW 项目的运行环境由 AUTO-MAS 按项目准备。Hub 本地后端和 UU 前置任务的版本见 [Python 依赖清单](requirements.txt) 和 [UU 依赖清单](scripts/uu-requirements.txt)。PySide6、其 Addons / Essentials 和 Shiboken6 共用源码仓库。
+右列列出 [Windows 安装脚本](scripts/setup-windows.ps1) 使用的版本或提交。
 
-| 上游源码 | Git 最新提交（UTC） |
-| --- | --- |
-| [MaaFramework](https://github.com/MaaXYZ/MaaFramework) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FMaaXYZ%2FMaaFramework%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/MaaXYZ/MaaFramework/commits) |
-| [pywinauto](https://github.com/pywinauto/pywinauto) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fpywinauto%2Fpywinauto%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/pywinauto/pywinauto/commits) |
-| [RapidOCR](https://github.com/RapidAI/RapidOCR) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FRapidAI%2FRapidOCR%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/RapidAI/RapidOCR/commits) |
-| [ok-script](https://github.com/ok-oldking/ok-script) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fok-oldking%2Fok-script%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/ok-oldking/ok-script/commits) |
-| [PyYAML](https://github.com/yaml/pyyaml) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fyaml%2Fpyyaml%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/yaml/pyyaml/commits) |
-| [adbutils](https://github.com/openatx/adbutils) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fopenatx%2Fadbutils%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/openatx/adbutils/commits) |
-| [pynput](https://github.com/moses-palmer/pynput) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fmoses-palmer%2Fpynput%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/moses-palmer/pynput/commits) |
-| [OnnxOCR PP-OCRv5](https://github.com/ok-oldking/OnnxOCR) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fok-oldking%2FOnnxOCR%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/ok-oldking/OnnxOCR/commits) |
-| [OpenVINO](https://github.com/openvinotoolkit/openvino) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fopenvinotoolkit%2Fopenvino%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/openvinotoolkit/openvino/commits) |
-| [opencv-python](https://github.com/opencv/opencv-python) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fopencv%2Fopencv-python%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/opencv/opencv-python/commits) |
-| [OpenCC](https://github.com/BYVoid/OpenCC) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FBYVoid%2FOpenCC%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/BYVoid/OpenCC/commits) |
-| [PySide6 Fluent Widgets](https://github.com/zhiyiYo/PyQt-Fluent-Widgets/tree/PySide6) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FzhiyiYo%2FPyQt-Fluent-Widgets%2Fcommits%2FPySide6&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/zhiyiYo/PyQt-Fluent-Widgets/commits/PySide6/) |
-| [requests](https://github.com/psf/requests) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fpsf%2Frequests%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/psf/requests/commits) |
-| [urllib3](https://github.com/urllib3/urllib3) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Furllib3%2Furllib3%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/urllib3/urllib3/commits) |
-| [certifi](https://github.com/certifi/python-certifi) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fcertifi%2Fpython-certifi%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/certifi/python-certifi/commits) |
-| [charset-normalizer](https://github.com/jawah/charset_normalizer) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fjawah%2Fcharset_normalizer%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/jawah/charset_normalizer/commits) |
-| [idna](https://github.com/kjd/idna) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fkjd%2Fidna%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/kjd/idna/commits) |
-| [retry2](https://github.com/eSAMTrade/retry) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FeSAMTrade%2Fretry%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/eSAMTrade/retry/commits) |
-| [NumPy](https://github.com/numpy/numpy) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fnumpy%2Fnumpy%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/numpy/numpy/commits) |
-| [Pillow](https://github.com/python-pillow/Pillow) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fpython-pillow%2FPillow%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/python-pillow/Pillow/commits) |
-| [pyclipper](https://github.com/fonttools/pyclipper) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Ffonttools%2Fpyclipper%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/fonttools/pyclipper/commits) |
-| [Shapely](https://github.com/shapely/shapely) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fshapely%2Fshapely%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/shapely/shapely/commits) |
-| [OpenVINO Telemetry](https://github.com/openvinotoolkit/telemetry) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fopenvinotoolkit%2Ftelemetry%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/openvinotoolkit/telemetry/commits) |
-| [darkdetect](https://github.com/albertosottile/darkdetect) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Falbertosottile%2Fdarkdetect%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/albertosottile/darkdetect/commits) |
-| [PySide6 Frameless Window](https://github.com/zhiyiYo/PyQt-Frameless-Window/tree/PySide6) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FzhiyiYo%2FPyQt-Frameless-Window%2Fcommits%2FPySide6&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/zhiyiYo/PyQt-Frameless-Window/commits/PySide6/) |
-| [pywin32](https://github.com/mhammond/pywin32) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fmhammond%2Fpywin32%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/mhammond/pywin32/commits) |
-| [pycaw](https://github.com/AndreMiras/pycaw) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FAndreMiras%2Fpycaw%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/AndreMiras/pycaw/commits) |
-| [comtypes](https://github.com/enthought/comtypes) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fenthought%2Fcomtypes%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/enthought/comtypes/commits) |
-| [psutil](https://github.com/giampaolo/psutil) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fgiampaolo%2Fpsutil%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/giampaolo/psutil/commits) |
-| [mouse](https://github.com/boppreh/mouse) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fboppreh%2Fmouse%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/boppreh/mouse/commits) |
-| [PyDirectInput](https://github.com/learncodebygaming/pydirectinput) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Flearncodebygaming%2Fpydirectinput%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/learncodebygaming/pydirectinput/commits) |
-| [decorator](https://github.com/micheles/decorator) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fmicheles%2Fdecorator%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/micheles/decorator/commits) |
-| [deprecation](https://github.com/briancurtin/deprecation) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fbriancurtin%2Fdeprecation%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/briancurtin/deprecation/commits) |
-| [packaging](https://github.com/pypa/packaging) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fpypa%2Fpackaging%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/pypa/packaging/commits) |
-| [six](https://github.com/benjaminp/six) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fbenjaminp%2Fsix%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/benjaminp/six/commits) |
-| [typing-extensions](https://github.com/python/typing_extensions) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fpython%2Ftyping_extensions%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/python/typing_extensions/commits) |
-| [PyAppify Python](https://github.com/ok-oldking/pyappify-python) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fok-oldking%2Fpyappify-python%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/ok-oldking/pyappify-python/commits) |
-| [Brotli](https://github.com/google/brotli) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fgoogle%2Fbrotli%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/google/brotli/commits) |
-| [tqdm](https://github.com/tqdm/tqdm) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Ftqdm%2Ftqdm%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/tqdm/tqdm/commits) |
-| [Playwright for Python](https://github.com/microsoft/playwright-python) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fmicrosoft%2Fplaywright-python%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/microsoft/playwright-python/commits) |
-| [UnityPy](https://github.com/K0lb3/UnityPy) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FK0lb3%2FUnityPy%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/K0lb3/UnityPy/commits) |
-| [PySide6 / Shiboken6](https://github.com/qtproject/pyside-pyside-setup) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fqtproject%2Fpyside-pyside-setup%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/qtproject/pyside-pyside-setup/commits) |
-| [OpenAI Python SDK](https://github.com/openai/openai-python) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fopenai%2Fopenai-python%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/openai/openai-python/commits) |
-| [ONNX Runtime](https://onnxruntime.ai/) | 2026-11-28 查询时，[官方 GitHub 仓库](https://github.com/microsoft/onnxruntime)返回 404。可查 [PyPI 发行记录](https://pypi.org/project/onnxruntime/#history)。 |
+| 用途 | 上游源码 | 安装脚本基线 |
+| --- | --- | --- |
+| 统一调度 | [AUTO-MAS](https://github.com/AUTO-MAS-Project/AUTO-MAS) | [`v5.8.0`](https://github.com/AUTO-MAS-Project/AUTO-MAS/releases/tag/v5.8.0) |
+| 崩坏 3 | [Maa_bbb](https://github.com/miaojiuqing/Maa_bbb) | [`v1.13.22`](https://github.com/miaojiuqing/Maa_bbb/releases/tag/v1.13.22) |
+| 崩坏：星穹铁道 | [三月七小助手](https://github.com/moesnow/March7thAssistant) | [`v2026.11.22`](https://github.com/moesnow/March7thAssistant/releases/tag/v2026.11.22) |
+| 崩坏：星穹铁道（可选） | [StarRailAssistant](https://github.com/Shasnow/StarRailAssistant) | 按需单独配置 |
+| 绝区零 | [绝区零一条龙](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon) | [`v2.6.1`](https://github.com/OneDragon-Anything/ZenlessZoneZero-OneDragon/releases/tag/v2.6.1) |
+| 原神 | [BetterGI](https://github.com/babalae/better-genshin-impact) | [`0.67.0`](https://github.com/babalae/better-genshin-impact/releases/tag/0.67.0) |
+| 公主连结 B 服 | [pcr-script](https://github.com/Gibberer/pcr-script) | [`d1eb212`](https://github.com/Gibberer/pcr-script/commit/d1eb2120599a5bc42ce934657f7788e1a8f0bfc3) |
+| 崩坏学园 2 | [MaaBH2](https://github.com/freeze-12/MaaBH2) | [`v0.3.6`](https://github.com/freeze-12/MaaBH2/releases/tag/v0.3.6) |
+| 崩坏学园 2（可选） | [Honkai2Automation](https://github.com/lolineet/Honkai2Automation) | 按需单独配置 |
+| 明日方舟：终末地 | [MaaEnd](https://github.com/MaaEnd/MaaEnd) | [`v3.2.0`](https://github.com/MaaEnd/MaaEnd/releases/tag/v3.2.0) |
+| NIKKE 国际服 | [NIKKEAutoScript（NKAS）](https://github.com/megumiss/NIKKEAutoScript) | [`v1.2.0`](https://github.com/megumiss/NIKKEAutoScript/releases/tag/v1.2.0) |
+| 学园偶像大师 | [MaaGakumasu](https://github.com/SuperWaterGod/MaaGakumasu) | [`v1.5.4`](https://github.com/SuperWaterGod/MaaGakumasu/releases/tag/v1.5.4) |
+| Dot Abyss | [MaaDotAbyss](https://github.com/Azure-Sora/MaaDotAbyss) | [`8ec90d7`](https://github.com/Azure-Sora/MaaDotAbyss/commit/8ec90d7b900b9feaaac35cd78498e928e2e2a067) |
 
 </details>
 
 <details>
-<summary>安装工具和 CI 依赖的提交时间</summary>
+<summary>运行框架和 Python 依赖源码</summary>
 
-| 上游源码 | Git 最新提交（UTC） |
-| --- | --- |
-| [PyAppify](https://github.com/ok-oldking/pyappify) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fok-oldking%2Fpyappify%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/ok-oldking/pyappify/commits) |
-| [PyAppify Action](https://github.com/ok-oldking/pyappify-action) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fok-oldking%2Fpyappify-action%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/ok-oldking/pyappify-action/commits) |
-| [partial-sync-repo](https://github.com/ok-oldking/partial-sync-repo) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fok-oldking%2Fpartial-sync-repo%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/ok-oldking/partial-sync-repo/commits) |
-| [actions/checkout](https://github.com/actions/checkout) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Factions%2Fcheckout%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/actions/checkout/commits) |
-| [actions/setup-python](https://github.com/actions/setup-python) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Factions%2Fsetup-python%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/actions/setup-python/commits) |
-| [action-gh-release](https://github.com/softprops/action-gh-release) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fsoftprops%2Faction-gh-release%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/softprops/action-gh-release/commits) |
-| [Mirror 酱上传 Action](https://github.com/MirrorChyan/uploading-action) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FMirrorChyan%2Fuploading-action%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/MirrorChyan/uploading-action/commits) |
-| [Mirror 酱发布说明 Action](https://github.com/MirrorChyan/release-note-action) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2FMirrorChyan%2Frelease-note-action%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/MirrorChyan/release-note-action/commits) |
-| [Git for Windows](https://github.com/git-for-windows/git) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fgit-for-windows%2Fgit%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/git-for-windows/git/commits) |
-| [CPython](https://github.com/python/cpython) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fpython%2Fcpython%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/python/cpython/commits) |
-| [WinGet](https://github.com/microsoft/winget-cli) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fmicrosoft%2Fwinget-cli%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/microsoft/winget-cli/commits) |
-| [curl](https://github.com/curl/curl) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fcurl%2Fcurl%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/curl/curl/commits) |
-| [uv](https://github.com/astral-sh/uv) | [![Git 最新提交时间](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fapi.github.com%2Frepos%2Fastral-sh%2Fuv%2Fcommits%2FHEAD&query=%24.commit.committer.date&label=&style=flat-square)](https://github.com/astral-sh/uv/commits) |
-| [Android ADB](https://android.googlesource.com/platform/packages/modules/adb/) | [2025-03-26T00:41:28Z（AOSP main 快照）](https://android.googlesource.com/platform/packages/modules/adb/+/1cf2f017d312f73b3dc53bda85ef2610e35a80e9) · [实时提交记录](https://android.googlesource.com/platform/packages/modules/adb/+log/refs/heads/main) |
+公主连结与 Dot Abyss 的适配器使用 MaaFramework `5.16.1`。其他 MFW 项目的运行环境由 AUTO-MAS 按项目准备。Hub 本地后端和 UU 前置任务的版本见 [Python 依赖清单](requirements.txt) 和 [UU 依赖清单](scripts/uu-requirements.txt)。PySide6、其 Addons / Essentials 和 Shiboken6 共用源码仓库。
+
+- [MaaFramework](https://github.com/MaaXYZ/MaaFramework)
+- [pywinauto](https://github.com/pywinauto/pywinauto)
+- [RapidOCR](https://github.com/RapidAI/RapidOCR)
+- [ok-script](https://github.com/ok-oldking/ok-script)
+- [PyYAML](https://github.com/yaml/pyyaml)
+- [adbutils](https://github.com/openatx/adbutils)
+- [pynput](https://github.com/moses-palmer/pynput)
+- [OnnxOCR PP-OCRv5](https://github.com/ok-oldking/OnnxOCR)
+- [OpenVINO](https://github.com/openvinotoolkit/openvino)
+- [opencv-python](https://github.com/opencv/opencv-python)
+- [OpenCC](https://github.com/BYVoid/OpenCC)
+- [PySide6 Fluent Widgets](https://github.com/zhiyiYo/PyQt-Fluent-Widgets/tree/PySide6)
+- [requests](https://github.com/psf/requests)
+- [urllib3](https://github.com/urllib3/urllib3)
+- [certifi](https://github.com/certifi/python-certifi)
+- [charset-normalizer](https://github.com/jawah/charset_normalizer)
+- [idna](https://github.com/kjd/idna)
+- [retry2](https://github.com/eSAMTrade/retry)
+- [NumPy](https://github.com/numpy/numpy)
+- [Pillow](https://github.com/python-pillow/Pillow)
+- [pyclipper](https://github.com/fonttools/pyclipper)
+- [Shapely](https://github.com/shapely/shapely)
+- [OpenVINO Telemetry](https://github.com/openvinotoolkit/telemetry)
+- [darkdetect](https://github.com/albertosottile/darkdetect)
+- [PySide6 Frameless Window](https://github.com/zhiyiYo/PyQt-Frameless-Window/tree/PySide6)
+- [pywin32](https://github.com/mhammond/pywin32)
+- [pycaw](https://github.com/AndreMiras/pycaw)
+- [comtypes](https://github.com/enthought/comtypes)
+- [psutil](https://github.com/giampaolo/psutil)
+- [mouse](https://github.com/boppreh/mouse)
+- [PyDirectInput](https://github.com/learncodebygaming/pydirectinput)
+- [decorator](https://github.com/micheles/decorator)
+- [deprecation](https://github.com/briancurtin/deprecation)
+- [packaging](https://github.com/pypa/packaging)
+- [six](https://github.com/benjaminp/six)
+- [typing-extensions](https://github.com/python/typing_extensions)
+- [PyAppify Python](https://github.com/ok-oldking/pyappify-python)
+- [Brotli](https://github.com/google/brotli)
+- [tqdm](https://github.com/tqdm/tqdm)
+- [Playwright for Python](https://github.com/microsoft/playwright-python)
+- [UnityPy](https://github.com/K0lb3/UnityPy)
+- [PySide6 / Shiboken6](https://github.com/qtproject/pyside-pyside-setup)
+- [OpenAI Python SDK](https://github.com/openai/openai-python)
+- [ONNX Runtime](https://onnxruntime.ai/) · [官方 GitHub 仓库](https://github.com/microsoft/onnxruntime) · [PyPI 发行记录](https://pypi.org/project/onnxruntime/#history)
+
+</details>
+
+<details>
+<summary>安装工具和 CI 依赖源码</summary>
+
+- [PyAppify](https://github.com/ok-oldking/pyappify)
+- [PyAppify Action](https://github.com/ok-oldking/pyappify-action)
+- [partial-sync-repo](https://github.com/ok-oldking/partial-sync-repo)
+- [actions/checkout](https://github.com/actions/checkout)
+- [actions/upload-pages-artifact](https://github.com/actions/upload-pages-artifact)
+- [actions/deploy-pages](https://github.com/actions/deploy-pages)
+- [actions/setup-python](https://github.com/actions/setup-python)
+- [action-gh-release](https://github.com/softprops/action-gh-release)
+- [Mirror 酱上传 Action](https://github.com/MirrorChyan/uploading-action)
+- [Mirror 酱发布说明 Action](https://github.com/MirrorChyan/release-note-action)
+- [Git for Windows](https://github.com/git-for-windows/git)
+- [CPython](https://github.com/python/cpython)
+- [WinGet](https://github.com/microsoft/winget-cli)
+- [curl](https://github.com/curl/curl)
+- [uv](https://github.com/astral-sh/uv)
+- [Android ADB](https://android.googlesource.com/platform/packages/modules/adb/)
 
 </details>
 

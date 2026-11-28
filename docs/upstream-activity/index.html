@@ -1,0 +1,348 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>上游项目更新时间 · Daily Clear Hub</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --background: #f5f8f9;
+      --surface: #fff;
+      --header: #edf4f4;
+      --text: #162b30;
+      --muted: #485f64;
+      --border: #d4e1e3;
+      --link: #00645b;
+      --active: #e4f1ef;
+      font-family: system-ui, "Microsoft YaHei", "PingFang SC", sans-serif;
+      font-size: 16px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background: #111b1e;
+        --surface: #182528;
+        --header: #1d3033;
+        --text: #e3eff0;
+        --muted: #b0c7ca;
+        --border: #354b4f;
+        --link: #8be2d2;
+        --active: #28413f;
+      }
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--text);
+      line-height: 1.55;
+    }
+
+    main {
+      max-width: 68rem;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 3.5rem;
+    }
+
+    a { color: var(--link); text-underline-offset: 0.18em; }
+    :focus-visible { outline: 2px solid var(--link); outline-offset: 3px; }
+    h1 { margin: 0.55rem 0 0.35rem; font-size: clamp(1.65rem, 5vw, 2.5rem); line-height: 1.25; }
+    p { margin: 0; }
+    .intro, .meta, .details { color: var(--muted); }
+    .intro { margin-bottom: 1.5rem; }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.6rem 1rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .filter { display: flex; align-items: center; gap: 0.6rem; }
+    .filter label { font-size: 0.9rem; font-weight: 600; }
+    select, button { font: inherit; color: inherit; }
+
+    select, #retry {
+      min-height: 2.5rem;
+      padding: 0.35rem 0.65rem;
+      border: 1px solid var(--border);
+      border-radius: 0.35rem;
+      background: var(--surface);
+    }
+
+    #retry { cursor: pointer; }
+    .meta { font-size: 0.85rem; }
+    #status { margin: 0 0 0.55rem; }
+
+    .table-wrapper {
+      overflow: hidden;
+      border: 1px solid var(--border);
+      border-radius: 0.55rem;
+      background: var(--surface);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+      table-layout: fixed;
+    }
+
+    .project-column { width: 50%; }
+    .date-column { width: 30%; }
+    .baseline-column { width: 20%; }
+
+    thead { background: var(--header); }
+    th, td { padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--border); }
+    th { font-size: 0.875rem; font-weight: 650; }
+    td { vertical-align: top; overflow-wrap: anywhere; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:focus-within, tbody tr:hover { background: var(--background); }
+
+    .sort {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4em;
+      min-height: 2rem;
+      padding: 0.15rem 0.3rem;
+      margin: -0.15rem -0.3rem;
+      border: 0;
+      border-radius: 0.25rem;
+      background: transparent;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    .sort:hover, th[aria-sort] .sort { background: var(--active); }
+    .direction { color: var(--link); }
+    .project-name { font-weight: 650; }
+    .details { display: block; margin-top: 0.1rem; font-size: 0.82rem; }
+    time { font-variant-numeric: tabular-nums; }
+    time .date-part { white-space: nowrap; }
+    #error { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; }
+    #empty { padding: 1.2rem 0.9rem; }
+
+    .visually-hidden {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      padding: 0;
+      margin: -1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    @media (max-width: 36rem) {
+      main { padding: 1.35rem 0.75rem 2rem; }
+      .project-column { width: 45%; }
+      .date-column { width: 32%; }
+      .baseline-column { width: 23%; }
+      th, td { padding: 0.55rem 0.45rem; font-size: 0.81rem; }
+      td time .date-part { display: block; }
+      .details, .meta { font-size: 0.75rem; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <a href="https://github.com/electrovalentbond/daily-clear-hub#readme">Daily Clear Hub</a>
+      <h1>上游项目更新时间</h1>
+      <p class="intro">提交时间使用 UTC。安装基线是 Windows 安装脚本选用的版本或提交。</p>
+    </header>
+
+    <div class="toolbar" id="toolbar" hidden>
+      <div class="filter">
+        <label for="group">类别</label>
+        <select id="group"><option value="">全部项目</option></select>
+      </div>
+      <div class="meta" id="snapshot" hidden>数据快照 <span id="snapshot-time"></span> UTC</div>
+    </div>
+
+    <p class="meta" id="status" role="status" hidden></p>
+    <div id="error" hidden>
+      <p role="alert">暂时无法载入上游项目数据。</p>
+      <button id="retry" type="button">重试</button>
+    </div>
+
+    <div class="table-wrapper" id="results" hidden>
+      <table>
+        <caption class="visually-hidden">上游项目、最近提交与 Windows 安装基线</caption>
+        <colgroup>
+          <col class="project-column">
+          <col class="date-column">
+          <col class="baseline-column">
+        </colgroup>
+        <thead>
+          <tr>
+            <th scope="col">
+              <button class="sort" type="button" data-sort="name">
+                项目 <span class="direction" aria-hidden="true">↕</span>
+              </button>
+            </th>
+            <th scope="col" aria-sort="descending">
+              <button class="sort" type="button" data-sort="date">
+                最近提交（UTC） <span class="direction" aria-hidden="true">↓</span>
+              </button>
+            </th>
+            <th scope="col">安装基线</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+      <p id="empty" hidden>当前类别没有项目。</p>
+    </div>
+    <noscript>
+      <p>启用 JavaScript 后可查看和排序，或在 <a href="https://github.com/electrovalentbond/daily-clear-hub#上游项目更新时间">README</a> 中查看项目列表。</p>
+    </noscript>
+  </main>
+
+  <script>
+    const groupFilter = document.querySelector('#group');
+    const results = document.querySelector('#results');
+    const rows = document.querySelector('#rows');
+    const empty = document.querySelector('#empty');
+    const status = document.querySelector('#status');
+    const error = document.querySelector('#error');
+    const sortButtons = document.querySelectorAll('[data-sort]');
+    const names = new Intl.Collator('zh-CN', {numeric: true});
+    let projects = [];
+    let sort = {key: 'date', direction: -1};
+
+    function projectLink(label, address) {
+      let url;
+      try {
+        url = new URL(address);
+      } catch {
+        return document.createTextNode(label);
+      }
+      if (url.protocol !== 'https:') return document.createTextNode(label);
+
+      const link = document.createElement('a');
+      link.href = url.href;
+      link.textContent = label;
+      return link;
+    }
+
+    function utcTime(timestamp, address) {
+      const iso = new Date(timestamp).toISOString();
+      const time = document.createElement('time');
+      time.dateTime = iso;
+      const datePart = document.createElement('span');
+      datePart.className = 'date-part';
+      datePart.textContent = iso.slice(0, 10);
+      time.append(datePart, ' ', iso.slice(11, 19));
+
+      const linkedTime = projectLink('', address);
+      if (linkedTime.nodeType !== Node.ELEMENT_NODE) return time;
+      linkedTime.append(time);
+      return linkedTime;
+    }
+
+    function addDetails(cell, details) {
+      if (!details) return;
+      const text = document.createElement('span');
+      text.className = 'details';
+      text.textContent = details;
+      cell.append(text);
+    }
+
+    function projectRow(project) {
+      const row = document.createElement('tr');
+      const projectCell = row.insertCell();
+      const name = document.createElement('span');
+      name.className = 'project-name';
+      name.append(projectLink(project.name, project.source_url));
+      projectCell.append(name);
+      addDetails(projectCell, [project.group, project.usage].filter(Boolean).join(' · '));
+
+      const dateCell = row.insertCell();
+      if (Number.isFinite(project.timestamp)) {
+        dateCell.append(utcTime(project.timestamp, project.commit_url || project.history_url));
+        addDetails(dateCell, project.date_label);
+      } else {
+        dateCell.append(projectLink(project.date_label || '暂无数据', project.history_url));
+      }
+
+      const baseline = row.insertCell();
+      baseline.append(projectLink(project.baseline || '—', project.baseline_url));
+      return row;
+    }
+
+    function compareProjects(left, right) {
+      const leftKnown = Number.isFinite(left.timestamp);
+      const rightKnown = Number.isFinite(right.timestamp);
+      if (leftKnown !== rightKnown) return leftKnown ? -1 : 1;
+      const byName = names.compare(left.name, right.name);
+      if (sort.key === 'name') return byName * sort.direction;
+      return (leftKnown ? (left.timestamp - right.timestamp) * sort.direction : 0) || byName;
+    }
+
+    function render() {
+      const visible = projects.filter(project => !groupFilter.value || project.group === groupFilter.value);
+      rows.replaceChildren(...visible.sort(compareProjects).map(projectRow));
+      empty.hidden = visible.length > 0;
+      const direction = sort.direction < 0 ? 'descending' : 'ascending';
+      for (const button of sortButtons) {
+        const active = button.dataset.sort === sort.key;
+        const heading = button.closest('th');
+        heading.removeAttribute('aria-sort');
+        if (active) heading.setAttribute('aria-sort', direction);
+        const arrow = button.querySelector('.direction');
+        arrow.textContent = active ? (sort.direction < 0 ? '↓' : '↑') : '↕';
+      }
+      status.textContent = `显示 ${visible.length} / ${projects.length} 个项目。无日期的项目排在末尾。`;
+    }
+
+    async function load() {
+      error.hidden = true;
+      status.hidden = false;
+      status.textContent = '正在载入上游项目…';
+      try {
+        const response = await fetch('projects.json', {cache: 'no-cache'});
+        if (!response.ok) throw new Error('Data request failed');
+        const data = await response.json();
+        projects = data.projects.map(project => ({
+          ...project,
+          group: project.group || '其他',
+          timestamp: Date.parse(project.date),
+        }));
+        const groups = new Set(projects.map(project => project.group));
+        for (const group of groups) groupFilter.add(new Option(group, group));
+
+        const updatedAt = Date.parse(data.updated_at);
+        if (Number.isFinite(updatedAt)) {
+          document.querySelector('#snapshot-time').replaceChildren(utcTime(updatedAt));
+          document.querySelector('#snapshot').hidden = false;
+        }
+        render();
+        document.querySelector('#toolbar').hidden = false;
+        results.hidden = false;
+      } catch {
+        status.hidden = true;
+        error.hidden = false;
+      }
+    }
+
+    for (const button of sortButtons) {
+      button.addEventListener('click', () => {
+        const key = button.dataset.sort;
+        const direction = key === sort.key ? -sort.direction : key === 'date' ? -1 : 1;
+        sort = {key, direction};
+        render();
+      });
+    }
+    groupFilter.addEventListener('change', render);
+    document.querySelector('#retry').addEventListener('click', load);
+    load();
+  </script>
+</body>
+</html>
