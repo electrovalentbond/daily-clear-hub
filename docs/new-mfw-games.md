@@ -50,6 +50,17 @@ NIKKE 国际服使用开源 [NIKKEAutoScript（NKAS）](https://github.com/megum
 3. **DMM 日服**选「PC」和「DMM」，以管理员权限打开 AUTO-MAS。「PC 游戏启动方式」选「由脚本自身控制游戏」，新版也可能显示「使用其他方式启停游戏」。配置 DMM 快捷方式或 UU 加速后启动。把 MaaGakumasu 自带的「启动游戏」放在普通任务的第一项，进入主页并处理登录后的弹窗。使用插件汉化时选「DMM插件汉化版」。[快捷方式配置](#从-auto-mas-启动-dmm-游戏) · [UU 启动配置](#学园偶像大师和-dot-abyss) · [进入主页流程](https://github.com/SuperWaterGod/MaaGakumasu/blob/v1.5.4/assets/resource/base/pipeline/StartUp.json)
 4. 日常可以先加「收取活动费」「领取奖励」，再按需加「安排工作」「社团活动」「每日挑战」和「每周免费初星包」。使用上游「一键日常」预设时，留意其中的好友扭蛋和金币兑换选项。[一键日常预设](https://github.com/SuperWaterGod/MaaGakumasu/blob/v1.5.4/assets/tasks/preset.json#L1-L76)
 
+### DMM 版在「关闭游戏」失败
+
+如果日常已经完成，最后一项报「停在 Shutdown」，先停止当前托管，在 Windows 的仓库目录更新。使用含 UU 托管时保留 `-WithUu`，使用普通托管时去掉它。自定义过 `-ToolsRoot` 时沿用原路径。
+
+```powershell
+git pull --ff-only
+& .\scripts\setup-windows.ps1 -Games gakumas -WithUu
+```
+
+在现有托管的「基本信息 → 跟随来源目录」点「立即同步」。控制器仍选「PC」，资源选「DMM」或「DMM插件汉化版」，把现有的「关闭游戏」留在普通任务队列最后。修复后的任务会由 MaaFramework 结束当前绑定的游戏窗口所对应的进程。[上游 Shutdown 定义](https://github.com/SuperWaterGod/MaaGakumasu/blob/v1.5.4/assets/resource/base/pipeline/Shutdown.json#L2-L12) · [MaaFramework 的 Win32 关闭实现](https://github.com/MaaXYZ/MaaFramework/blob/v5.16.1/source/MaaWin32ControlUnit/Manager/Win32ControlUnitMgr.cpp#L337-L368)
+
 ## Dot Abyss
 
 当前接入面向 Windows 上的 **日文 DMM 客户端「ドットアビスX」**。首次从 DMM GAMES PLAYER 登录游戏并完成引导，将游戏窗口设为 `1280×720`。识别使用游戏窗口截图和支持图像输入的 OpenAI 兼容模型。云端模型会接收截图，费用按所选供应商计。[MaaDotAbyss 使用说明](https://github.com/Azure-Sora/MaaDotAbyss/blob/v0.2.0/README.md)

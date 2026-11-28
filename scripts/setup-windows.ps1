@@ -337,13 +337,14 @@ function Register-Nkas([string]$MasExe) {
 function Install-UuProject([string]$Game, [string]$Interface, [string]$Folder) {
     $Source = Split-Path -Parent $Interface
     $Target = Join-Path $ToolsRoot "$Folder-UU"
+    $TargetInterface = Join-Path $Target 'interface.json'
     $Marker = Join-Path $UuRoot "$Folder.copy.sha256"
     $Fingerprint = (Get-FileHash -LiteralPath $Interface -Algorithm SHA256).Hash
     $CopiedFingerprint = if (Test-Path -LiteralPath $Marker -PathType Leaf) {
         [IO.File]::ReadAllText($Marker)
     }
     if ($Game -eq 'dotabyss' -or
-        -not (Test-Path -LiteralPath (Join-Path $Target 'interface.json')) -or
+        -not (Test-Path -LiteralPath $TargetInterface) -or
         $CopiedFingerprint -ne $Fingerprint) {
         [IO.Directory]::CreateDirectory($Target) | Out-Null
         foreach ($Item in Get-ChildItem -LiteralPath $Source -Force) {
@@ -358,8 +359,9 @@ function Install-UuProject([string]$Game, [string]$Interface, [string]$Folder) {
         -Destination (Join-Path $Target 'daily-clear-dmm.ps1') -Force
     Invoke-CheckedNative $HubPython @(
         '-X', 'utf8', (Join-Path $PSScriptRoot 'uu_project.py'), 'prepare', $Game, $Interface,
-        (Join-Path $Target 'interface.json'), $UuPython, (Join-Path $UuRoot 'uu_project.py')
+        $TargetInterface, $UuPython, (Join-Path $UuRoot 'uu_project.py')
     )
+    if ($Game -eq 'gakumas') { Add-GakumasShutdown $TargetInterface }
     [IO.File]::WriteAllText($Marker, $Fingerprint)
     Write-Host ("${Game} UU AUTO-MAS project: " + $Target)
 }
@@ -369,6 +371,10 @@ function Add-DmmLaunch([string]$Game, [string]$Interface) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'dmm-before.ps1') `
         -Destination (Join-Path $Project 'daily-clear-dmm.ps1') -Force
     Invoke-CheckedNative $HubPython @('-X', 'utf8', (Join-Path $PSScriptRoot 'dmm_project.py'), $Game, $Interface)
+}
+
+function Add-GakumasShutdown([string]$Interface) {
+    Invoke-CheckedNative $HubPython @('-X', 'utf8', (Join-Path $PSScriptRoot 'patch_maagakumas.py'), $Interface)
 }
 
 function Prepare-DotAbyss {
@@ -424,7 +430,10 @@ try {
                 if ($Game -eq 'bhxy2') {
                     Invoke-CheckedNative $HubPython @((Join-Path $PSScriptRoot 'patch_maabh2.py'), $Entry)
                 }
-                if ($Game -eq 'gakumas') { Add-DmmLaunch $Game $Entry }
+                if ($Game -eq 'gakumas') {
+                    Add-DmmLaunch $Game $Entry
+                    Add-GakumasShutdown $Entry
+                }
                 Write-Host ("${Game}: " + (Split-Path -Parent $Entry))
                 if ($WithUu -and $Game -in $UuGames) { Install-UuProject $Game $Entry $Releases[$Game].Folder }
             }
